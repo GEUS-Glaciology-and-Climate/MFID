@@ -42,6 +42,10 @@ all: G GRASS PYTHON dist
 G:
 	grass -e -c EPSG:3413 ./G
 
+
+import: FORCE
+	grass ./G/PERMANENT --exec ./import.sh
+	
 GRASS: FORCE
 	grass ./G/PERMANENT --exec ./import.sh
 	grass ./G/PERMANENT --exec ./gate_IO_runner.sh
@@ -881,7 +885,39 @@ db.select table=sectors | head
 #+RESULTS:
 
 
-*** SEC
+*** Elevation
+
+
+
++ h_0 is PRODEM 20 set to day 182 of 2020
++ h_n+ is PRODEM following years
+  + When PRODEM ends, continue using last year (e.g., =pandas= =ffill()=)
++ h_n- is Khan 2016e [[file:${DATADIR}/Khan_2016/README.org]]
+  + Coverage is 1995 through 2020
+  + Prior to Khan beginning, use first year (e.g., =pandas= =bfill()=)
+    
+**** PRODEM
+
+#+BEGIN_SRC bash :exports both :results verbatim
+MSG_OK "dh/dt"
+
+g.mapset -c PRODEM
+r.mask -r
+
+f=$(ls ${DATADIR}/PRODEM/PRODEM??.tif | head -n1) # debug
+for f in $(ls ${DATADIR}/PRODEM/PRODEM??.tif); do
+  y=20$(echo ${f: -6:2})
+  r.in.gdal -r input=${f} output=DEM_${y} band=1
+  # r.in.gdal -r input=${f} output=var_${y} band=2
+  # r.in.gdal -r input=${f} output=dh_${y} band=3
+  # r.in.gdal -r input=${f} output=time_${y} band=4
+  # r.univar -g time_2019 # mean = DOI 213 = 01 Aug
+done
+g.region raster=DEM_2019 -pa
+#+END_SRC
+
+
+**** SEC
 
 Using CCI SEC data from citet:simonsen_2017_implications,sørensen_2015_envisat,khvorostovsky_2012_merging,CCI_SEC.
 
@@ -917,30 +953,8 @@ done
 #+END_SRC
 #+RESULTS:
 
-**** Define annual values
+***** Define annual values
 #+BEGIN_SRC bash :results verbatim
-r.mapcalc "dh_1992 = SEC_19920101_19970101"
-r.mapcalc "dh_1993 = SEC_19920101_19970101"
-r.mapcalc "dh_1994 = SEC_19920101_19970101"
-r.mapcalc "dh_1995 = SEC_19930101_19980101"
-r.mapcalc "dh_1996 = SEC_19940101_19990101"
-r.mapcalc "dh_1997 = SEC_19950101_20000101"
-r.mapcalc "dh_1998 = SEC_19960101_20010101"
-r.mapcalc "dh_1999 = SEC_19970101_20020101"
-r.mapcalc "dh_2000 = SEC_19980101_20030101"
-r.mapcalc "dh_2001 = SEC_19990101_20040101"
-r.mapcalc "dh_2002 = SEC_20000101_20050101"
-r.mapcalc "dh_2003 = SEC_20010101_20060101"
-r.mapcalc "dh_2004 = SEC_20020101_20070101"
-r.mapcalc "dh_2005 = SEC_20030101_20080101"
-r.mapcalc "dh_2006 = SEC_20040101_20090101"
-r.mapcalc "dh_2007 = SEC_20050101_20100101"
-r.mapcalc "dh_2008 = SEC_20060101_20110101"
-r.mapcalc "dh_2009 = SEC_20070101_20120101"
-r.mapcalc "dh_2010 = SEC_20080101_20130101"
-r.mapcalc "dh_2011 = SEC_20090101_20140101"
-r.mapcalc "dh_2012 = SEC_20100101_20150101"
-r.mapcalc "dh_2013 = SEC_20110101_20160101"
 r.mapcalc "dh_2014 = SEC_20120101_20170101"
 r.mapcalc "dh_2015 = SEC_20130101_20180101"
 r.mapcalc "dh_2016 = SEC_20140101_20190101"
@@ -950,8 +964,30 @@ r.mapcalc "dh_2019 = SEC_20150101_20200101"
 r.mapcalc "dh_2020 = SEC_20150101_20200101"
 r.mapcalc "dh_2021 = SEC_20150101_20200101"
 
-seq 1992 2021 | parallel --bar --progress "r.null map=dh_{} null=0" --quiet
+seq 2014 2021 | parallel --bar --progress "r.null map=dh_{} null=0" --quiet
 #+END_SRC
+**** DEM
+
++ Merge Khan dh/dt w/ PRODEM to generate annual DEMs
+
+#+BEGIN_SRC bash :exports both :results verbatim
+MSG_OK "DEM"
+g.mapset -c DEM
+
+g.region raster=DEM_2020@PRODEM -pa
+for y in {2019..2022}; do
+  r.mapcalc "DEM_${y} = DEM_${y}@PRODEM"
+done
+
+for y in {2019..2014}; do
+  y1=$(( ${y} + 1 ))
+  r.mapcalc "DEM_${y} = DEM_${y1} - dh_${y}@SEC"
+done
+#+END_SRC
+
+
+
+
 **** COMMENT Coverage Percent?
 #+BEGIN_SRC bash :results verbatim
 
@@ -1115,8 +1151,8 @@ r.null map=gates_y null=0 # OR r.null map=gates_y setnull=0
 *** Clean Gates                                                    :noexport:
 **** Subset to where there is known discharge
 #+BEGIN_SRC bash :results verbatim
-r.mapcalc "gates_xy_clean0 = if((gates_x == 1) || (gates_y == 1), 1, null())" --o
-r.colors map=gates_xy_clean0 color=haxby
+r.mapcalc "gates_xy_clean00 = if((gates_x == 1) || (gates_y == 1), 1, null())" --o
+r.mapcalc "gates_xy_clean0 = if(gates_xy_clean00 & if(DEM_2019@DEM), 1, null())" --o
 #+END_SRC
 #+RESULTS:
 
@@ -1385,28 +1421,40 @@ g.region -dp
 
 MAPSET=$(g.mapsets --q -l separator="\n"| grep "gates_")
 
-VEL_baseline=vel_baseline@ENVEO,vx_baseline@ENVEO,vy_baseline@ENVEO,vel_err_baseline@ENVEO,err_baseline@ENVEO
-VEL_ENVEO=$(g.list -m mapset=ENVEO type=raster pattern=vel_eff_????_??_?? separator=,)
-ERR_ENVEO=$(g.list -m mapset=ENVEO type=raster pattern=err_eff_????_??_?? separator=,)
-VEL_Sentinel=$(g.list -m mapset=Sentinel1 type=raster pattern=vel_eff_????_??_?? separator=,)
-ERR_Sentinel=$(g.list -m mapset=Sentinel1 type=raster pattern=err_eff_????_??_?? separator=,)
-THICK=$(g.list -m mapset=SEC type=raster pattern=dh_???? separator=,)
+VEL_baseline="vel_baseline@ENVEO vx_baseline@ENVEO vy_baseline@ENVEO vel_err_baseline@ENVEO err_baseline@ENVEO"
+VEL_ENVEO=$(g.list -m mapset=ENVEO type=raster pattern=vel_eff_????_??_?? separator=space)
+ERR_ENVEO=$(g.list -m mapset=ENVEO type=raster pattern=err_eff_????_??_?? separator=space)
+#VEL_Sentinel=$(g.list -m mapset=Sentinel1 type=raster pattern=vel_eff_????_??_?? separator=space)
+#ERR_Sentinel=$(g.list -m mapset=Sentinel1 type=raster pattern=err_eff_????_??_?? separator=space)
+THICK=$(g.list -m mapset=DEM type=raster pattern=DEM_???? separator=space)
+#THICK=$(g.list -m mapset=SEC type=raster pattern=dh_???? separator=space)
 # GIMP_0715=dem@GIMP.0715,day@GIMP.0715 # ,err@GIMP.0715
 
-LIST=lon,lat,err_2D,gates_x@${MAPSET},gates_y@${MAPSET},gates_gateID@${MAPSET},sectors@Zwally_2012,sectors@Mouginot_2019,regions@Mouginot_2019,bed@BedMachine,thickness@BedMachine,surface@BedMachine,${THICK},${VEL_baseline},${VEL_ENVEO},errbed@BedMachine,${ERR_ENVEO}
+LIST="lon lat err_2D gates_x@${MAPSET} gates_y@${MAPSET} gates_gateID@${MAPSET} sectors@Zwally_2012 sectors@Mouginot_2019 regions@Mouginot_2019 bed@BedMachine thickness@BedMachine surface@BedMachine ${THICK} ${VEL_baseline} ${VEL_ENVEO} errbed@BedMachine ${ERR_ENVEO}"
 
 # ,${VEL_Sentinel},${ERR_Sentinel}
 
-r.mask gates_final@${MAPSET} --o
-
+#r.mask gates_final@${MAPSET} --o
+mkdir tmp/dat
+r.mapcalc "MASK = if(gates_final@${MAPSET}) | if(mask_GIC@Mouginot_2019) | if(vel_err_baseline@ENVEO) | if(DEM_2020@DEM)" --o
+parallel --bar "if [[ ! -e ./tmp/dat/{1}.bsv ]]; then (echo x\|y\|{1}; r.out.xyz input={1}) > ./tmp/dat/{1}.bsv; fi" ::: ${LIST}
+r.mask -r
 # test
 # for v in $(echo $LIST | tr ',' '\n'); do n=$(r.univar $v|grep "^n:"); echo ${v}: ${n}; done
 
-date
-MSG_WARN "Exporting: $(echo $LIST|tr ',' '\n' |wc -l) columns"
-ulimit -n 2048
-time (echo x,y,${LIST}; r.out.xyz input=${LIST} separator=comma) > ./tmp/dat.csv
-r.mask -r
+# combine individual files to one mega csv
+cat ./tmp/dat/lat.bsv | cut -d"|" -f1,2 | datamash -t"|" transpose > ./tmp/dat_t.bsv
+for f in ./tmp/dat/*; do
+  cat $f | cut -d"|" -f3 | datamash -t"|" transpose >> ./tmp/dat_t.bsv
+done
+cat ./tmp/dat_t.bsv |datamash -t"|" transpose | tr '|' ',' > ./tmp/dat.csv
+rm ./tmp/dat_t.bsv
+
+#date
+#MSG_WARN "Exporting: $(echo $LIST|tr ',' '\n' |wc -l) columns"
+#ulimit -n 2048
+#time (echo x,y,${LIST}; r.out.xyz input=${LIST} separator=comma) > ./tmp/dat.csv
+#r.mask -r
 #+END_SRC
 #+RESULTS:
 ** Compute Errors
@@ -1839,6 +1887,14 @@ err.sort_index(axis='columns', inplace=True)
 
 # tmp = np.array([c if c not in err.columns else None for c in vel.columns]); print(tmp[tmp != None])
 
+###
+### DEM
+###
+dem = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('DEM' in c)))
+mv = {}
+for c in dem.columns: mv[c] = int(c.split('@')[0].split('_')[1])
+dem.rename(inplace=True, columns=mv)
+
 
 ###
 ### Thickness
@@ -1850,11 +1906,10 @@ th = pd.read_csv("./tmp/dat.csv", usecols=["thickness@BedMachine",
                                            # "bed_0@Millan_2018",
                                            # "thickness_0@Millan_2018",
                                            "gates_gateID@gates_150_10000"])
-th.rename(inplace=True, columns={'thickness@BedMachine':'thick',
-                                 # 'bed_0@Millan_2018':'bed@Millan_2018',
-                                 # 'thickness_0@Millan_2018':'thickness@Millan_2018',
-                                 'errbed@BedMachine': 'err',
+th.rename(inplace=True, columns={'errbed@BedMachine': 'err',
                                  'gates_gateID@gates_150_10000':'gates'})
+
+th['thick'] = dem[2020] - th['bed@BedMachine']
 # th_GIMP = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('@GIMP.0715' in c)))
 # th_GIMP['day'] = [dt.datetime(2000,1,1) + dt.timedelta(days=np.int(_)) for _ in th_GIMP['day@GIMP.0715']]
 # for _ in th_GIMP.columns: th[_] = th_GIMP[_]
@@ -1864,10 +1919,10 @@ th.rename(inplace=True, columns={'thickness@BedMachine':'thick',
 ###
 ### dh/dt
 ###
-dhdt = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('dh' in c)))
-mv = {}
-for c in dhdt.columns: mv[c] = int(c.split('@')[0].split('_')[1])
-dhdt.rename(inplace=True, columns=mv)
+#dhdt = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('dh' in c)))
+#mv = {}
+#for c in dhdt.columns: mv[c] = int(c.split('@')[0].split('_')[1])
+#dhdt.rename(inplace=True, columns=mv)
 
 # assume linear trend average of adjacent 3 years for missing years
 # dhdt[2018] = dhdt.loc[:,2015:2017].mean(axis='columns')
@@ -1919,7 +1974,6 @@ For testing, gate clumps 9 (all bad) and 546 (some bad)
 
 #+NAME: adjust_thickness
 #+BEGIN_SRC python :exports none :results raw drawer :display text/org
-
 th['bad'] = th['thick'] <= 20
 
 th['thick_adj_300'] = th['thick']
@@ -2129,35 +2183,40 @@ dtype: float64
 
 
 **** Temporal changes in thickness
-+ Assume BedMachine surface date is nominally 2007
-+ Adjust thickness forward and backward through time using SEC.
++ + Each pixel has DEM at YYYY. Assume 08-01 (DOY ~213)
++ Assume DEM_2020 is baseline 
++ Linear interpolate between annual values
++ Take derivative to get dh/dt
 #+BEGIN_SRC python :exports none :results raw drawer
-th_ts = dhdt.copy(deep=True)
-th_ts[2007] = th['fit']
+dem_ts = dem.copy(deep=True)
+dem_ts.columns = [str(y)+'-08-01' for y in dem_ts.columns]
+dem_ts.columns = dem_ts.columns.astype(str).astype('datetime64[ns]')
 
-th_ts[2008] = th_ts[2007] + dhdt[2008]
-for i in np.arange(2009,2019+1):
-    th_ts[i] = th_ts[i-1] + dhdt[i]
-th_ts[2020] = th_ts[2019] + dhdt[2019]
-th_ts[2021] = th_ts[2019] + dhdt[2019]*2
-th_ts[2022] = th_ts[2019] + dhdt[2019]*3
-th_ts[2023] = th_ts[2019] + dhdt[2019]*4
+# extend to first and last velocity timestamp
+dem_ts[vel.columns.min()] = dem_ts[dem_ts.columns.min()]
+dem_ts[vel.columns.max()] = dem_ts[dem_ts.columns.max()]
+# re-sort so column are still in temporal order
+dem_ts = dem_ts.reindex(sorted(dem_ts.columns), axis='columns')
+# resample to daily.
+dem_ts = dem_ts.T.resample('1D').interpolate().T
+dem_ts = dem_ts[vel.columns] # resample back to observed times
+# Above gives us DEM time series at each gate pixel
 
-th_ts.columns = [pd.to_datetime(_, format='%Y') for _ in th_ts.columns]
-th_ts = th_ts.T.resample('1D').interpolate().T
 
-th_ts = th_ts[vel.columns]
+# subtract thickness from each pixel at each time
+th_ts = dem_ts.apply(lambda x: x - th['bed@BedMachine'])
 
 # Re-adjust th_ts where thickness < 20 m.
 bad = th_ts.min(axis=1) < 20 # Pixels with bad thickness somewhere in the time series
 for px in bad[bad == True].index:
-    th_ts.loc[px] = fits.predict(np.log10([1,vel_baseline.iloc[px].vel]))
+    th_ts.loc[px] = fits.predict(np.log10([1,vel_baseline.iloc[px].values[0]]))
 #+END_SRC
 
 #+RESULTS:
 :results:
 None
 :end:
+
 
 *** Discharge
 
@@ -2620,7 +2679,7 @@ D = pd.read_csv("./out/GIS_D.csv", index_col=0, parse_dates=True)
 err = pd.read_csv("./out/GIS_err.csv", index_col=0, parse_dates=True)
 coverage = pd.read_csv("./out/GIS_coverage.csv", index_col=0, parse_dates=True)
 
-ROOT="/home/shl@geus.dk/OneDrive/projects/promice/solid_ice_discharge/dataverse_data"
+ROOT="/home/shl@geus.dk/OneDrive/projects/promice/solid_ice_discharge/dataverse_data/"
 D_M2019 = pd.read_csv(ROOT+"/GIS_D.csv", index_col=0, parse_dates=True)
 err_M2019 = pd.read_csv(ROOT+"/GIS_err.csv", index_col=0, parse_dates=True)
 
@@ -2808,12 +2867,6 @@ adj(ax_D, ['left','bottom'])
 D = pd.read_csv("./out/sector_D.csv", index_col=0, parse_dates=True)
 err = pd.read_csv("./out/sector_err.csv", index_col=0, parse_dates=True)
 
-### Take annual average from daily interpolated rather than the existing samples.
-# D_day_year = D.resample('1D',axis='rows').mean().interpolate(method='time',limit_area='inside').resample('A',axis='rows').mean()
-# err_day_year=err.resample('1D',axis='rows').mean().interpolate(method='time',limit_area='inside').resample('A',axis='rows').mean()
-
-# D_day_year.plot(ax=ax_D, alpha=0.5)
-# D_day_year.sum(axis='columns').plot(ax=ax_D, alpha=0.5)
 D[['8.1','7.1']].plot(ax=ax_D, linewidth=3)
 ax_D.fill_between(D.index,
                   D['8.1']-err['8.1'],
@@ -2823,9 +2876,61 @@ ax_D.fill_between(D.index,
                   D['7.1']-err['7.1'],
                   D['7.1']+err['7.1'], alpha=0.25)
 
+
 ax_D.set_ylim([0,120])
 ax_D.set_ylabel("Discharge [Gt yr$^{-1}$]")
 ax_D.set_xlabel("Date")
+
+plt.savefig('./figs/discharge_ts_sectors.png', transparent=False, bbox_inches='tight', dpi=300)
+
+
+fig1 = plt.figure(1, figsize=(9,5)) # w,h
+fig1.clf()
+ax_D1 = fig.add_subplot(111)
+
+from adjust_spines import adjust_spines as adj
+adj(ax_D1, ['left','bottom'])
+
+D = pd.read_csv("./out/region_D.csv", index_col=0, parse_dates=True)
+err = pd.read_csv("./out/region_err.csv", index_col=0, parse_dates=True)
+
+D[['CE','CW','NE','NO','NW','SE','SW']].plot(ax=ax_D1, linewidth=3)
+
+ax_D1.fill_between(D.index,
+                  D['CE']-err['CE'],
+                  D['CE']+err['CE'], alpha=0.25)
+
+ax_D1.fill_between(D.index,
+                  D['CW']-err['CW'],
+                  D['CW']+err['CW'], alpha=0.25)
+
+ax_D1.fill_between(D.index,
+                  D['NE']-err['NE'],
+                  D['NE']+err['NE'], alpha=0.25)
+
+ax_D1.fill_between(D.index,
+                  D['NO']-err['NO'],
+                  D['NO']+err['NO'], alpha=0.25)
+
+ax_D1.fill_between(D.index,
+                  D['NW']-err['NW'],
+                  D['NW']+err['NW'], alpha=0.25)
+
+ax_D1.fill_between(D.index,
+                  D['SE']-err['SE'],
+                  D['SE']+err['SE'], alpha=0.25)
+
+ax_D1.fill_between(D.index,
+                  D['SW']-err['SW'],
+                  D['SW']+err['SW'], alpha=0.25)
+
+ax_D1.legend(loc=3)
+ax_D1.set_ylim([0,170])
+ax_D1.set_ylabel("Discharge [Gt yr$^{-1}$]")
+ax_D1.set_xlabel("Date")
+
+
+plt.savefig('./figs/discharge_ts_regions.png', transparent=False, bbox_inches='tight', dpi=300)
 # # largest average for last year
 # D_sort = D.resample('Y', axis='rows')\
 #           .mean()\
@@ -2906,7 +3011,7 @@ ax_D.set_xlabel("Date")
 
 
 #plt.savefig('./figs/discharge_ts_topfew.svg', transparent=True, bbox_inches='tight', dpi=300)
-plt.savefig('./figs/discharge_ts_sectors.png', transparent=False, bbox_inches='tight', dpi=300)
+
 # plt.savefig('./figs/discharge_ts_topfew.pdf', transparent=True, bbox_inches='tight', dpi=300)
 
 # Err_pct = (err_day_year / D_day_year*100).round().astype(np.int).astype(np.str)
@@ -2932,7 +3037,7 @@ import matplotlib.pyplot as plt
 
 CCI = pd.read_csv("./out/GIS_D.csv", index_col=0, parse_dates=True)\
         .rename({'Discharge [Gt yr-1]':'CCI'}, axis='columns')
-ID = pd.read_csv("/home/shl@geus.dk/OneDrive/projects/promice/solid_ice_discharge/dataverse_data", index_col=0, parse_dates=True)\
+ID = pd.read_csv("/home/shl@geus.dk/OneDrive/projects/promice/solid_ice_discharge/dataverse_data/GIS_D.csv", index_col=0, parse_dates=True)\
        .rename({'Discharge [Gt yr-1]':'Mankoff (2019)'}, axis='columns')
 
 df = pd.merge(CCI,ID,how='outer', left_index=True, right_index=True).dropna()
