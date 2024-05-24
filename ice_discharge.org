@@ -530,9 +530,25 @@ ROOT=${DATADIR}/ENVEO/monthly
 find ${ROOT} -name "*.nc"
 # FILE=$(find ${ROOT} -name "*.nc"|head -n1) # testing
 
-FILE=$(find ${ROOT} -name "*.nc" | head -n1) # DEBUG
-for FILE in $(find ${ROOT} -name "*.nc" | LC_ALL=C sort); do
+FILE=$(find ${ROOT} -name "greenland*.nc" | head -n1) # DEBUG
+for FILE in $(find ${ROOT} -name "greenland*.nc" | LC_ALL=C sort); do
   T=$(echo ${FILE}|grep -o _s........_| tr -dc [0-9])
+  DATE_STR=${T:0:4}_${T:4:2}_${T:6:2}
+  echo $DATE_STR
+
+  r.external -o source="NetCDF:${FILE}:land_ice_surface_easting_velocity" output=vx_${DATE_STR}
+  r.external -o source="NetCDF:${FILE}:land_ice_surface_northing_velocity" output=vy_${DATE_STR}
+
+  r.external -o source="NetCDF:${FILE}:land_ice_surface_velocity_stddev" output=err_${DATE_STR}
+  r.external -o source="NetCDF:${FILE}:land_ice_surface_easting_stddev" output=ex_${DATE_STR}
+  r.external -o source="NetCDF:${FILE}:land_ice_surface_northing_stddev" output=ey_${DATE_STR}
+  r.mapcalc "err_${DATE_STR} = (ex_${DATE_STR}^2 + ey_${DATE_STR}^2)^0.5"
+done
+
+FILE=$(find ${ROOT} -name "*CCI*.nc" | head -n1) # DEBUG
+for FILE in $(find ${ROOT} -name "*CCI*.nc" | LC_ALL=C sort); do
+  T=$(basename "${FILE}" | grep -o '^[0-9]\{8\}')
+
   DATE_STR=${T:0:4}_${T:4:2}_${T:6:2}
   echo $DATE_STR
 
