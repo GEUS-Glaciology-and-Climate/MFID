@@ -975,10 +975,10 @@ r.mapcalc "dh_2014 = SEC_20120101_20170101"
 r.mapcalc "dh_2015 = SEC_20130101_20180101"
 r.mapcalc "dh_2016 = SEC_20140101_20190101"
 r.mapcalc "dh_2017 = SEC_20150101_20200101"
-r.mapcalc "dh_2018 = SEC_20150101_20200101"
-r.mapcalc "dh_2019 = SEC_20150101_20200101"
-r.mapcalc "dh_2020 = SEC_20150101_20200101"
-r.mapcalc "dh_2021 = SEC_20150101_20200101"
+r.mapcalc "dh_2018 = SEC_20160101_20210101"
+r.mapcalc "dh_2019 = SEC_20160101_20210101"
+r.mapcalc "dh_2020 = SEC_20160101_20210101"
+r.mapcalc "dh_2021 = SEC_20160101_20210101"
 
 seq 2014 2021 | parallel --bar --progress "r.null map=dh_{} null=0" --quiet
 #+END_SRC
