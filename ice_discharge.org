@@ -956,7 +956,7 @@ ncap2 --overwrite -s 'SEC2=SEC.permute($t,$y,$x)' ${INFILE} ./tmp/SEC.nc
 INFILE=./tmp/SEC.nc
 
 # ncdump -p 9,5 ./tmp/SEC.nc |less
-for i in $(seq 24); do
+for i in $(seq 25); do
   d0=$(( ${i}+1991 ))-01-01
   d1=$(( ${i}+1996 ))-01-01
   n0=$(echo $d0 | sed s/-//g)
