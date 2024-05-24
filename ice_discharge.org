@@ -144,7 +144,7 @@ set -x # print commands to STDOUT before running them
 #+RESULTS:
 
 *** Bed and Surface
-**** BedMachine v3
+**** BedMachine v5
 + from [[textcite:Morlighem:2017BedMachine][Morlighem /et al./ (2017)]]
 #+BEGIN_SRC bash :results verbatim
 MSG_OK "BedMachine"
@@ -998,9 +998,10 @@ g.region raster=DEM_2020@PRODEM -pa
 #  r.mapcalc "DEM_${y} = DEM_${y}@PRODEM"
 #done
 
+r.mapcalc "DEM_2020 = DEM_2020@PRODEM"
 for y in {2021..2023}; do
   y1=$(( ${y} - 1 ))
-  r.mapcalc "DEM_${y} = DEM_${y1} + dh_${y}@SEC"
+  r.mapcalc "DEM_${y} = DEM_${y1} + dh_${y}@SEC" --o
 done
 
 
