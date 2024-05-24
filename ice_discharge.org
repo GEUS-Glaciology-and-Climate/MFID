@@ -956,7 +956,7 @@ ncap2 --overwrite -s 'SEC2=SEC.permute($t,$y,$x)' ${INFILE} ./tmp/SEC.nc
 INFILE=./tmp/SEC.nc
 
 # ncdump -p 9,5 ./tmp/SEC.nc |less
-for i in $(seq 24); do
+for i in $(seq 25); do
   d0=$(( ${i}+1991 ))-01-01
   d1=$(( ${i}+1996 ))-01-01
   n0=$(echo $d0 | sed s/-//g)
@@ -975,29 +975,38 @@ r.mapcalc "dh_2014 = SEC_20120101_20170101"
 r.mapcalc "dh_2015 = SEC_20130101_20180101"
 r.mapcalc "dh_2016 = SEC_20140101_20190101"
 r.mapcalc "dh_2017 = SEC_20150101_20200101"
-r.mapcalc "dh_2018 = SEC_20150101_20200101"
-r.mapcalc "dh_2019 = SEC_20150101_20200101"
-r.mapcalc "dh_2020 = SEC_20150101_20200101"
-r.mapcalc "dh_2021 = SEC_20150101_20200101"
+r.mapcalc "dh_2018 = SEC_20160101_20210101"
+r.mapcalc "dh_2019 = SEC_20160101_20210101"
+r.mapcalc "dh_2020 = SEC_20160101_20210101"
+r.mapcalc "dh_2021 = SEC_20160101_20210101"
+r.mapcalc "dh_2022 = SEC_20160101_20210101"
+r.mapcalc "dh_2023 = SEC_20160101_20210101"
 
-seq 2014 2021 | parallel --bar --progress "r.null map=dh_{} null=0" --quiet
+
+seq 2014 2023 | parallel --bar --progress "r.null map=dh_{} null=0" --quiet
 #+END_SRC
 **** DEM
 
-+ Merge Khan dh/dt w/ PRODEM to generate annual DEMs
++ generate annual DEMs
 
 #+BEGIN_SRC bash :exports both :results verbatim
 MSG_OK "DEM"
 g.mapset -c DEM
 
 g.region raster=DEM_2020@PRODEM -pa
-for y in {2019..2022}; do
-  r.mapcalc "DEM_${y} = DEM_${y}@PRODEM"
+#for y in {2019..2022}; do
+#  r.mapcalc "DEM_${y} = DEM_${y}@PRODEM"
+#done
+
+for y in {2021..2023}; do
+  y1=$(( ${y} - 1 ))
+  r.mapcalc "DEM_${y} = DEM_${y1} + dh_${y}@SEC"
 done
+
 
 for y in {2019..2014}; do
   y1=$(( ${y} + 1 ))
-  r.mapcalc "DEM_${y} = DEM_${y1} - dh_${y}@SEC"
+  r.mapcalc "DEM_${y} = DEM_${y1} - dh_${y}@SEC" --o
 done
 #+END_SRC
 
