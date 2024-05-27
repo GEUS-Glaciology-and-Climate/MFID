@@ -999,7 +999,9 @@ g.region raster=DEM_2020@PRODEM -pa
 #done
 
 r.mapcalc "DEM_2020 = DEM_2020@PRODEM"
-for y in {2021..2023}; do
+r.mapcalc "DEM_2020 = DEM_2020@PRODEM"
+
+for y in {2020..2023}; do
   y1=$(( ${y} - 1 ))
   r.mapcalc "DEM_${y} = DEM_${y1} + dh_${y}@SEC" --o
 done
