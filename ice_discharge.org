@@ -995,7 +995,7 @@ for y in {2019..2022}; do
   r.mapcalc "DEM_${y} = DEM_${y}@PRODEM"
 done
 
-for y in {2019..2014}; do
+for y in {2018..2014}; do
   y1=$(( ${y} + 1 ))
   r.mapcalc "DEM_${y} = DEM_${y1} - dh_${y}@SEC"
 done
