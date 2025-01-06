@@ -1051,8 +1051,12 @@ Using CCI SEC data from citet:simonsen_2017_implications,sørensen_2015_envisat,
 #+BEGIN_SRC bash :results verbatim
 g.mapset -c SEC
 
-ls ${DATADIR}/SEC/Release/CCI_GrIS_RA_SEC_5km_Vers3.0_2021-08-09.nc
-INFILE=${DATADIR}/SEC/Release/CCI_GrIS_RA_SEC_5km_Vers3.0_2021-08-09.nc
+#ls ${DATADIR}/SEC/Release/CCI_GrIS_RA_SEC_5km_Vers3.0_2021-08-09.nc
+#INFILE=${DATADIR}/SEC/Release/CCI_GrIS_RA_SEC_5km_Vers3.0_2021-08-09.nc
+
+ls ${DATADIR}/SEC/Release/CCI_GrIS_RA_SEC_5km_Vers3.0_2024-05-31.nc
+INFILE=${DATADIR}/SEC/Release/CCI_GrIS_RA_SEC_5km_Vers3.0_2024-05-31.nc
+
 ncdump -chs ${INFILE}
 ncdump -v x ${INFILE}
 ncdump -v y ${INFILE}
@@ -1064,7 +1068,7 @@ ncap2 --overwrite -s 'SEC2=SEC.permute($t,$y,$x)' ${INFILE} ./tmp/SEC.nc
 INFILE=./tmp/SEC.nc
 
 # ncdump -p 9,5 ./tmp/SEC.nc |less
-for i in $(seq 25); do
+for i in $(seq 28); do
   d0=$(( ${i}+1991 ))-01-01
   d1=$(( ${i}+1996 ))-01-01
   n0=$(echo $d0 | sed s/-//g)
@@ -1084,11 +1088,13 @@ r.mapcalc "dh_2015 = SEC_20130101_20180101"
 r.mapcalc "dh_2016 = SEC_20140101_20190101"
 r.mapcalc "dh_2017 = SEC_20150101_20200101"
 r.mapcalc "dh_2018 = SEC_20160101_20210101"
-r.mapcalc "dh_2019 = SEC_20160101_20210101"
-r.mapcalc "dh_2020 = SEC_20160101_20210101"
-r.mapcalc "dh_2021 = SEC_20160101_20210101"
+r.mapcalc "dh_2019 = SEC_20170101_20220101"
+r.mapcalc "dh_2020 = SEC_20180101_20230101"
+r.mapcalc "dh_2021 = SEC_20180101_20230101"
+r.mapcalc "dh_2022 = SEC_20180101_20230101"
+r.mapcalc "dh_2023 = SEC_20180101_20230101"
 
-seq 2014 2021 | parallel --bar --progress "r.null map=dh_{} null=0" --quiet
+seq 2014 2023 | parallel --bar --progress "r.null map=dh_{} null=0" --quiet
 #+END_SRC
 **** DEM
 
@@ -1099,13 +1105,18 @@ MSG_OK "DEM"
 g.mapset -c DEM
 
 g.region raster=DEM_2020@PRODEM -pa
-for y in {2019..2022}; do
-  r.mapcalc "DEM_${y} = DEM_${y}@PRODEM"
+#for y in {2019..2022}; do
+#  r.mapcalc "DEM_${y} = DEM_${y}@PRODEM"
+#done
+r.mapcalc "DEM_2019 = DEM_2019@PRODEM"
+for y in {2020..2023}; do
+  y1=$(( ${y} - 1 ))
+  r.mapcalc "DEM_${y} = DEM_${y1} + dh_${y}@SEC" --o
 done
 
 for y in {2019..2014}; do
   y1=$(( ${y} + 1 ))
-  r.mapcalc "DEM_${y} = DEM_${y1} - dh_${y}@SEC"
+  r.mapcalc "DEM_${y} = DEM_${y1} - dh_${y}@SEC" 
 done
 #+END_SRC
 
