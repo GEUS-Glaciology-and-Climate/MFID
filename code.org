@@ -2103,7 +2103,7 @@ For testing, gate clumps 9 (all bad) and 546 (some bad)
 
 #+NAME: adjust_thickness
 #+BEGIN_SRC python :exports none :results raw drawer :display text/org
-th['bad'] = th['thick'] <= 20
+th['bad'] = th['thick'] <= 0
 
 th['thick_adj_300'] = th['thick']
 th['thick_adj_300_err'] = th['err']
