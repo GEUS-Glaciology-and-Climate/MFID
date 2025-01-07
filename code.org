@@ -2103,7 +2103,7 @@ For testing, gate clumps 9 (all bad) and 546 (some bad)
 
 #+NAME: adjust_thickness
 #+BEGIN_SRC python :exports none :results raw drawer :display text/org
-th['bad'] = th['thick'] <= 0
+th['bad'] = th['thick'] <= 20
 
 th['thick_adj_300'] = th['thick']
 th['thick_adj_300_err'] = th['err']
@@ -2327,9 +2327,9 @@ dem_ts.to_csv('tmp/dem_ts.csv', index = True)
 th_ts = dem_ts.apply(lambda x: x - th['bed@BedMachine'])
 
 # Re-adjust th_ts where thickness < 20 m.
-bad = th_ts.min(axis=1) < 20 # Pixels with bad thickness somewhere in the time series
-for px in bad[bad == True].index:
-    th_ts.loc[px] = fits.predict(np.log10([1,vel_baseline.iloc[px].values[0]]))
+#bad = th_ts.min(axis=1) < 20 # Pixels with bad thickness somewhere in the time series
+#for px in bad[bad == True].index:
+#    th_ts.loc[px] = fits.predict(np.log10([1,vel_baseline.iloc[px].values[0]]))
 #+END_SRC
 
 #+RESULTS:
