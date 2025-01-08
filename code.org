@@ -7,7 +7,8 @@
 
 This document is an Emacs Org Mode plain-text file with code and text embedded.
 The purpose of the code is to calculate the mass flux ice discharge (MFID) for ESA CCI+ Greenland, Phase 2.
-
+It is based on the work flow created by Ken Mankoff for the PROMICE Solid Ice Discharge product: Mankoff, Ken; Solgaard, Anne; Larsen, Signe, 2020, "Greenland Ice Sheet solid ice discharge from 1986 through last month: Discharge", https://doi.org/10.22008/promice/data/ice_discharge/d/v02, GEUS Dataverse, V101,
+and the previous phases of ESA CCI.
 
 ** Workflow
 
