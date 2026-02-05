@@ -230,6 +230,8 @@ docker: FORCE ## Pull down Docker environment
 G:
 	grass -e -c EPSG:3413 ./G
 
+test:
+	${container_cmd} ${container_args} hillerup/ice_discharge:grass grass ./G/PERMANENT --exec ./dSEC.sh
 
 import: FORCE
 	${container_cmd} ${container_args} hillerup/ice_discharge:grass grass ./G/PERMANENT --exec ./import.sh
@@ -1063,8 +1065,16 @@ ncdump -v y ${INFILE}
 g.region w=-832025.1 e=987974.9 s=-3337070 n=-457070.5 res=5000 -p
 g.region w=w-2500 e=e+2500 n=n+2500 s=s-2500 -pa
 
+#TIMES=$(ncdump -v time "$INFILE" \
+#  | sed -n '/time = "/,/;/p' \
+#  | sed '1s/.*= //;$s/;//' \
+#  | tr -d '",' )
 
-TIMES=$(ncdump -v time "$INFILE"  | sed -n '/time = "/,/;/p'  | sed '1s/.*= //;$s/;//'  | tr -d '",' )
+TIMES=$(ncdump -v time "$INFILE" \
+  | sed -n '/time = "/,/;/p' \
+  | sed '1s/.*= //;$s/;//' \
+  | tr -d '",' \
+  | sed 's/^[[:space:]]*//')
 
 mapfile -t times <<< "$TIMES"
 
@@ -1073,12 +1083,24 @@ for ((i=0; i<${#times[@]}-1; i++)); do
 
   next_date=${times[i+1]%%T*}
   t1=$(date -d "$next_date - 1 day" +%F)
+
   OUTFILE=SEC_${t0}_${t1}
-  echo $OUTFILE
-  r.external -o source=NetCDF:${INFILE}:SEC band=${i} output=${OUTFILE}
+  band=$((i+1))
+
+  echo "Band $band → $OUTFILE"
+
+  r.external -o \
+    source=NetCDF:${INFILE}:ZZ \
+    band=${band} \
+    output=${OUTFILE}
+
   r.region -c map=${OUTFILE}
 
+  echo "t0 = $t0"
+  echo "t1 = $t1"
+  echo
 done
+
 
 #+END_SRC
 #+RESULTS:
