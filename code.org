@@ -217,7 +217,7 @@ container_cmd ?= docker
 container_args ?= run --user $(shell id -u):$(shell id -g) --mount type=bind,src=${DATADIR},dst=/data --mount type=bind,src=$(shell pwd),dst=/home/user --env PARALLEL="--delay 0.1 -j -1"
 
 
-all: docker G GRASS PYTHON dist
+all: docker G import GRASS PYTHON dist
 
 
 docker: FORCE ## Pull down Docker environment
@@ -233,9 +233,11 @@ G:
 
 import: FORCE
 	${container_cmd} ${container_args} hillerup/ice_discharge:grass grass ./G/PERMANENT --exec ./import.sh
-	
+
+
+
 GRASS: FORCE
-	${container_cmd} ${container_args} hillerup/ice_discharge:grass grass ./G/PERMANENT --exec ./import.sh
+	#${container_cmd} ${container_args} hillerup/ice_discharge:grass grass ./G/PERMANENT --exec ./import.sh
 	${container_cmd} ${container_args} hillerup/ice_discharge:grass grass ./G/PERMANENT --exec ./gate_IO_runner.sh
 	${container_cmd} ${container_args} hillerup/ice_discharge:grass grass ./G/PERMANENT --exec ./vel_eff.sh
 	${container_cmd} ${container_args} hillerup/ice_discharge:grass grass ./G/PERMANENT --exec ./export.sh
@@ -343,12 +345,12 @@ g.mapset -c BedMachine
 #  r.external source=netCDF:${DATADIR}/Morlighem_2017/BedMachineGreenland-v5.nc:${var} output=${var}
 #done
 
-for var in surface thickness bed errbed; do
+for var in surface thickness bed errbed mask; do
   echo $var
   r.external source="${DATADIR}"/Morlighem_2022/BMv5_3413/${var}.tif output=${var} --o
 done
 echo $var
-r.external source="${DATADIR}"/Morlighem_2022/BMv5_3413/mask_float.tif output=mask -o --o
+#r.external source="${DATADIR}"/Morlighem_2022/BMv5_3413/mask_float.tif output=mask -o --o
 
 r.colors -a map=errbed color=haxby
 
@@ -1052,8 +1054,8 @@ Using CCI SEC data from citet:simonsen_2017_implications,sørensen_2015_envisat,
 #+BEGIN_SRC bash :results verbatim
 g.mapset -c SEC
 
-ls ${DATADIR}/SEC/Release/CCI_GrIS_RA_SEC_5km_Vers3.0_2024-05-31.nc
-INFILE=${DATADIR}/SEC/Release/CCI_GrIS_RA_SEC_5km_Vers3.0_2024-05-31.nc
+ls ${DATADIR}/SEC/CCI_GrIS_RA_SEC_5km_Vers3.0_2024-05-31.nc
+INFILE=${DATADIR}/SEC/CCI_GrIS_RA_SEC_5km_Vers3.0_2024-05-31.nc
 ncdump -chs ${INFILE}
 ncdump -v x ${INFILE}
 ncdump -v y ${INFILE}
@@ -1573,7 +1575,7 @@ for f in ./tmp/dat/*; do
   cat $f | cut -d"|" -f3 | datamash -t"|" transpose >> ./tmp/dat_t.bsv
 done
 cat ./tmp/dat_t.bsv |datamash -t"|" transpose | tr '|' ',' > ./tmp/dat.csv
-rm ./tmp/dat_t.bsv
+#rm ./tmp/dat_t.bsv
 
 #date
 #MSG_WARN "Exporting: $(echo $LIST|tr ',' '\n' |wc -l) columns"
