@@ -1053,7 +1053,7 @@ g.region raster=DEM_2019 -pa
 Using CCI dSEC data from:http://products.esa-icesheets-cci.org/
 
 
-#+BEGIN_SRC bash :results verbatim :tangle dSEC.sh
+#+BEGIN_SRC bash :results verbatim 
 g.mapset -c dSEC
 
 ls ${DATADIR}/dSEC/CCI_GrIS_RA_dSEC_dh_5km_012011_032025.nc
