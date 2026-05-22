@@ -11,7 +11,7 @@ MAPSET=$(g.mapsets --q -l separator="\n"| grep "gates_")
 VEL_baseline="vel_baseline@ENVEO vx_baseline@ENVEO vy_baseline@ENVEO vel_err_baseline@ENVEO err_baseline@ENVEO"
 VEL_ENVEO=$(g.list -m mapset=ENVEO type=raster pattern=vel_eff_????_??_?? separator=space)
 ERR_ENVEO=$(g.list -m mapset=ENVEO type=raster pattern=err_eff_????_??_?? separator=space)
-THICK=$(g.list -m mapset=DEM type=raster pattern=DEM_???? separator=space)
+THICK=$(g.list -m mapset=DEM type=raster pattern="DEM_????_??" separator=space)
 
 LIST="lon lat err_2D gates_x@${MAPSET} gates_y@${MAPSET} gates_gateID@${MAPSET} sectors@Zwally_2012 sectors@Mouginot_2019 regions@Mouginot_2019 bed@BedMachine thickness@BedMachine surface@BedMachine ${THICK} ${VEL_baseline} ${VEL_ENVEO} errbed@BedMachine ${ERR_ENVEO}"
 

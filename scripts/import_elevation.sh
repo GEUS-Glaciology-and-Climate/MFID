@@ -11,50 +11,41 @@ for f in $(ls ${DATADIR}/PRODEM/PRODEM??.tif); do
 done
 g.region raster=DEM_2019 -pa
 
-MSG_OK "SEC"
-g.mapset -c SEC
-
-ls ${DATADIR}/SEC/CCI_GrIS_RA_SEC_5km_Vers3.0_2024-05-31.nc
-INFILE=${DATADIR}/SEC/CCI_GrIS_RA_SEC_5km_Vers3.0_2024-05-31.nc
-ncdump -chs ${INFILE}
-
-g.region w=-739301.625 e=880698.375 s=-3478140.75 n=-413140.75 res=5000 -p
-g.region w=w-2500 e=e+2500 n=n+2500 s=s-2500 -pa
-
-# SEC NetCDF has swapped dimensions; permute before reading
-ncap2 --overwrite -s 'SEC2=SEC.permute($t,$y,$x)' ${INFILE} ./tmp/SEC.nc
-INFILE=./tmp/SEC.nc
-
-for i in $(seq 28); do
-  d0=$(( ${i}+1991 ))-01-01
-  d1=$(( ${i}+1996 ))-01-01
-  n0=$(echo $d0 | sed s/-//g)
-  n1=$(echo $d1 | sed s/-//g)
-  OUTFILE=SEC_${n0}_${n1}
-  echo $OUTFILE
-  r.external -o source=NetCDF:${INFILE}:SEC2 band=${i} output=${OUTFILE}
-  r.region -c map=${OUTFILE}
-done
-
-r.mapcalc "dh_2014 = SEC_20120101_20170101"
-r.mapcalc "dh_2015 = SEC_20130101_20180101"
-r.mapcalc "dh_2016 = SEC_20140101_20190101"
-r.mapcalc "dh_2017 = SEC_20150101_20200101"
-r.mapcalc "dh_2018 = SEC_20160101_20210101"
-r.mapcalc "dh_2019 = SEC_20170101_20220101"
-
-seq 2014 2019 | parallel --bar --progress "r.null map=dh_{} null=0" --quiet
-
-MSG_OK "DEM"
+MSG_OK "DEM (monthly, integrated from PRODEM July 2020 anchor using dSEC)"
 g.mapset -c DEM
-
 g.region raster=DEM_2020@PRODEM -pa
 
-for y in {2019..2023}; do
-  r.mapcalc "DEM_${y} = DEM_${y}@PRODEM"
+# Anchor: PRODEM represents July, so DEM_2020_07 is our single reference point
+r.mapcalc "DEM_2020_07 = DEM_2020@PRODEM" --o
+
+# Get all dSEC maps in chronological order
+mapfile -t DSEC_MAPS < <(g.list type=raster mapset=dSEC pattern="SEC_*" separator=newline | LC_ALL=C sort)
+
+# Find the July 2020 dSEC map (anchor for forward integration)
+ANCHOR_IDX=-1
+for i in "${!DSEC_MAPS[@]}"; do
+    [[ "${DSEC_MAPS[$i]}" == SEC_2020-07* ]] && ANCHOR_IDX=$i && break
+done
+MSG_OK "dSEC anchor index: ${ANCHOR_IDX} (${DSEC_MAPS[$ANCHOR_IDX]})"
+
+# Backward integration: June 2020 → January 2011
+# DEM(month) = DEM(month+1) - dSEC(month); nulls in dSEC treated as no change
+PREV_DEM="DEM_2020_07"
+for (( i=ANCHOR_IDX-1; i>=0; i-- )); do
+    SEC="${DSEC_MAPS[$i]}"
+    T0=$(echo "${SEC}" | grep -oP '\d{4}-\d{2}-\d{2}' | head -1)
+    DEM_NAME="DEM_$(date -d "${T0}" +%Y_%m)"
+    r.mapcalc "${DEM_NAME} = ${PREV_DEM} - if(isnull(${SEC}@dSEC), 0, ${SEC}@dSEC)" --o
+    PREV_DEM="${DEM_NAME}"
 done
 
-for y in {2019..2014}; do
-  y1=$(( ${y} + 1 ))
-  r.mapcalc "DEM_${y} = DEM_${y1} - dh_${y}@SEC"
+# Forward integration: August 2020 → March 2025
+# DEM(month+1) = DEM(month) + dSEC(month); nulls in dSEC treated as no change
+PREV_DEM="DEM_2020_07"
+for (( i=ANCHOR_IDX; i<${#DSEC_MAPS[@]}; i++ )); do
+    SEC="${DSEC_MAPS[$i]}"
+    T0=$(echo "${SEC}" | grep -oP '\d{4}-\d{2}-\d{2}' | head -1)
+    DEM_NAME="DEM_$(date -d "${T0} + 1 month" +%Y_%m)"
+    r.mapcalc "${DEM_NAME} = ${PREV_DEM} + if(isnull(${SEC}@dSEC), 0, ${SEC}@dSEC)" --o
+    PREV_DEM="${DEM_NAME}"
 done

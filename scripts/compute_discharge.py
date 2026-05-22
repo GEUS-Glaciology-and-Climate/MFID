@@ -121,7 +121,9 @@ err.sort_index(axis='columns', inplace=True)
 ###
 dem = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('DEM' in c)))
 mv = {}
-for c in dem.columns: mv[c] = int(c.split('@')[0].split('_')[1])
+for c in dem.columns:
+    parts = c.split('@')[0].split('_')  # e.g. ['DEM', '2020', '07']
+    mv[c] = pd.Timestamp(f"{parts[1]}-{parts[2]}-01")
 dem.rename(inplace=True, columns=mv)
 
 
@@ -139,7 +141,7 @@ th.rename(inplace=True, columns={'errbed@BedMachine': 'err',
                                  'gates_gateID@gates_150_10000':'gates'})
 
 
-th['thick'] = dem[2020] - th['bed@BedMachine']
+th['thick'] = dem[pd.Timestamp('2020-07-01')] - th['bed@BedMachine']
 # th_GIMP = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('@GIMP.0715' in c)))
 # th_GIMP['day'] = [dt.datetime(2000,1,1) + dt.timedelta(days=np.int(_)) for _ in th_GIMP['day@GIMP.0715']]
 # for _ in th_GIMP.columns: th[_] = th_GIMP[_]
@@ -276,8 +278,7 @@ D_th['fit_err'] = vel_baseline.apply(lambda c: c * (th['fit_err'].values* 200 * 
 D_th.sum(axis='rows')
 
 dem_ts = dem.copy(deep=True)
-dem_ts.columns = [str(y)+'-08-01' for y in dem_ts.columns]
-dem_ts.columns = dem_ts.columns.astype(str).astype('datetime64[ns]')
+# columns are already monthly Timestamps from the parsing step above
 
 # extend to first and last velocity timestamp
 dem_ts[vel.columns.min()] = dem_ts[dem_ts.columns.min()]

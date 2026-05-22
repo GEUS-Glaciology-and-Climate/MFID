@@ -45,7 +45,7 @@ $(STAMPS)/names: scripts/import_names.sh | $(STAMPS)
 	$(GRASS_EXEC) ./scripts/import_names.sh
 	touch $@
 
-$(STAMPS)/elevation: scripts/import_elevation.sh | $(STAMPS)
+$(STAMPS)/elevation: scripts/import_elevation.sh $(STAMPS)/dsec | $(STAMPS)
 	$(GRASS_EXEC) ./scripts/import_elevation.sh
 	touch $@
 
