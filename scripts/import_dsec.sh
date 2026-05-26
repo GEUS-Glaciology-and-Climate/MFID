@@ -25,6 +25,6 @@ for ((i=0; i<${#times[@]}-1; i++)); do
   t1=$(date -d "$next_date - 1 day" +%F)
   OUTFILE=SEC_${t0}_${t1}
   echo $OUTFILE
-  r.external -o source=NetCDF:${INFILE}:SEC band=${i} output=${OUTFILE}
+  r.external -o source=NetCDF:${INFILE}:ZZ band=${i} output=${OUTFILE}
   r.region -c map=${OUTFILE}
 done
