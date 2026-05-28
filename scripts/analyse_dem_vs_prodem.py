@@ -149,4 +149,56 @@ plt.tight_layout()
 plt.savefig("./figs/dem_vs_prodem_coverage.png", dpi=150)
 plt.close()
 
+# ── 5. dSEC vs PRODEM-difference comparison ───────────────────────────────────
+# For each non-anchor year, compare:
+#   accumulated dSEC  = dem_ts[year-MM] - dem_ts[2020-07]   (what dSEC says changed)
+#   PRODEM difference = PRODEM(year)    - PRODEM(2020)       (what was actually measured)
+# Using July (anchor month) for the integrated DEM to keep the baseline consistent.
+
+anchor_col = pd.Timestamp("2020-07-01")
+if anchor_col not in dem_ts.columns:
+    anchor_col = dem_ts.columns[np.argmin(abs(dem_ts.columns - anchor_col))]
+anchor_dem = dem_ts[anchor_col].values
+anchor_prodem = prodem["2020"].values
+
+compare_years = [y for y in prodem_years if y != 2020]
+
+print("\ndSEC accumulated change vs PRODEM difference (relative to July 2020):")
+print(f"{'year':>6}  {'bias(m)':>8}  {'RMSE(m)':>8}  {'n':>6}")
+
+dsec_biases, dsec_rmses = {}, {}
+for y in compare_years:
+    target = pd.Timestamp(f"{y}-07-01")
+    if target not in dem_ts.columns:
+        target = dem_ts.columns[np.argmin(abs(dem_ts.columns - target))]
+    dsec_change = dem_ts[target].values - anchor_dem          # accumulated dSEC
+    prodem_change = prodem[str(y)].values - anchor_prodem     # measured change
+    mask = np.isfinite(dsec_change) & np.isfinite(prodem_change)
+    diff = dsec_change[mask] - prodem_change[mask]
+    dsec_biases[y] = diff.mean()
+    dsec_rmses[y] = np.sqrt((diff**2).mean())
+    print(f"  {y}  {dsec_biases[y]:+8.2f}  {dsec_rmses[y]:8.2f}  {mask.sum():6d}")
+
+# -- Plot: accumulated dSEC change vs PRODEM-measured change
+fig, axes = plt.subplots(1, len(compare_years), figsize=(3.5 * len(compare_years), 4))
+for ax, y in zip(axes, compare_years):
+    target = pd.Timestamp(f"{y}-07-01")
+    if target not in dem_ts.columns:
+        target = dem_ts.columns[np.argmin(abs(dem_ts.columns - target))]
+    dsec_change = dem_ts[target].values - anchor_dem
+    prodem_change = prodem[str(y)].values - anchor_prodem
+    mask = np.isfinite(dsec_change) & np.isfinite(prodem_change)
+    ax.scatter(prodem_change[mask], dsec_change[mask], s=1, alpha=0.3,
+               color="#e31a1c" if y > 2020 else "#1f78b4")
+    lo = min(prodem_change[mask].min(), dsec_change[mask].min())
+    hi = max(prodem_change[mask].max(), dsec_change[mask].max())
+    ax.plot([lo, hi], [lo, hi], "k--", linewidth=0.8)
+    ax.set_title(f"{y}\nbias={dsec_biases[y]:+.1f} m  RMSE={dsec_rmses[y]:.1f} m")
+    ax.set_xlabel("PRODEM change from 2020 (m)")
+    ax.set_ylabel("Accumulated dSEC from July 2020 (m)")
+fig.suptitle("Accumulated dSEC vs measured PRODEM change (relative to July 2020)", fontsize=11)
+plt.tight_layout()
+plt.savefig("./figs/dsec_vs_prodem_change.png", dpi=150)
+plt.close()
+
 print("\nFigures saved to figs/")
