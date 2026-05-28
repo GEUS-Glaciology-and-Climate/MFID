@@ -18,9 +18,10 @@ D = pd.read_csv("./out/GIS_D.csv", index_col=0, parse_dates=True)
 err = pd.read_csv("./out/GIS_err.csv", index_col=0, parse_dates=True)
 coverage = pd.read_csv("./out/GIS_coverage.csv", index_col=0, parse_dates=True)
 
-ROOT="/data/dataverse_data/"
-D_M2019 = pd.read_csv(ROOT+"/GIS_D.csv", index_col=0, parse_dates=True)
-err_M2019 = pd.read_csv(ROOT+"/GIS_err.csv", index_col=0, parse_dates=True)
+import xarray as xr
+_ref = xr.open_dataset('https://thredds.geus.dk/thredds/dodsC/solid_ice_discharge/GIS.nc')
+D_M2019 = _ref['discharge'].to_series().to_frame('Discharge [Gt yr-1]')
+err_M2019 = _ref['err'].to_series().to_frame('Discharge Error [Gt yr-1]')
 
 D_M2019 = D_M2019[(D_M2019.index > D.index[0]) & (D_M2019.index <= D.index[-1])]
 err_M2019 = err_M2019[(err_M2019.index > err.index[0]) & (err_M2019.index <= err.index[-1])]
@@ -251,8 +252,7 @@ import matplotlib.pyplot as plt
 
 CCI = pd.read_csv("./out/GIS_D.csv", index_col=0, parse_dates=True)\
         .rename({'Discharge [Gt yr-1]':'CCI'}, axis='columns')
-ID = pd.read_csv("/data/dataverse_data/GIS_D.csv", index_col=0, parse_dates=True)\
-       .rename({'Discharge [Gt yr-1]':'Mankoff (2019)'}, axis='columns')
+ID = _ref['discharge'].to_series().rename('Mankoff (2019)').to_frame()
 
 df = pd.merge(CCI,ID,how='outer', left_index=True, right_index=True).dropna()
 # df['diff'] = df['Mankoff (2019)'] - df['CCI']

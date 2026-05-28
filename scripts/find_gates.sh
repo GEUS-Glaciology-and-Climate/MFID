@@ -72,7 +72,7 @@ r.null map=gates_y null=0
 
 # Clean step 0: subset to where DEM coverage exists
 r.mapcalc "gates_xy_clean00 = if((gates_x == 1) || (gates_y == 1), 1, null())" --o
-r.mapcalc "gates_xy_clean0 = if(gates_xy_clean00 & if(DEM_2019@DEM), 1, null())" --o
+r.mapcalc "gates_xy_clean0 = if(gates_xy_clean00 & if(DEM_2019@PRODEM), 1, null())" --o
 
 # Clean step 1: remove clusters of ≤9 pixels (~360 m × 360 m)
 r.clump -d input=gates_xy_clean0 output=gates_gateID --o

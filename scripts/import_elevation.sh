@@ -22,18 +22,24 @@ r.mapcalc "DEM_2020_07 = DEM_2020@PRODEM" --o
 mapfile -t DSEC_MAPS < <(g.list type=raster mapset=dSEC pattern="SEC_*" separator=newline | LC_ALL=C sort)
 
 # Find the July 2020 dSEC map (anchor for forward integration)
+# Map names use underscores (not hyphens) since GRASS forbids hyphens: SEC_2020_07_*
 ANCHOR_IDX=-1
 for i in "${!DSEC_MAPS[@]}"; do
-    [[ "${DSEC_MAPS[$i]}" == SEC_2020-07* ]] && ANCHOR_IDX=$i && break
+    [[ "${DSEC_MAPS[$i]}" == SEC_2020_07* ]] && ANCHOR_IDX=$i && break
 done
 MSG_OK "dSEC anchor index: ${ANCHOR_IDX} (${DSEC_MAPS[$ANCHOR_IDX]})"
+
+# Helper: extract start date from map name (e.g. SEC_2020_07_01_... -> 2020-07-01)
+dsec_date() {
+    echo "$1" | grep -oP '\d{4}_\d{2}_\d{2}' | head -1 | tr '_' '-'
+}
 
 # Backward integration: June 2020 → January 2011
 # DEM(month) = DEM(month+1) - dSEC(month); nulls in dSEC treated as no change
 PREV_DEM="DEM_2020_07"
 for (( i=ANCHOR_IDX-1; i>=0; i-- )); do
     SEC="${DSEC_MAPS[$i]}"
-    T0=$(echo "${SEC}" | grep -oP '\d{4}-\d{2}-\d{2}' | head -1)
+    T0=$(dsec_date "${SEC}")
     DEM_NAME="DEM_$(date -d "${T0}" +%Y_%m)"
     r.mapcalc "${DEM_NAME} = ${PREV_DEM} - if(isnull(${SEC}@dSEC), 0, ${SEC}@dSEC)" --o
     PREV_DEM="${DEM_NAME}"
@@ -44,7 +50,7 @@ done
 PREV_DEM="DEM_2020_07"
 for (( i=ANCHOR_IDX; i<${#DSEC_MAPS[@]}; i++ )); do
     SEC="${DSEC_MAPS[$i]}"
-    T0=$(echo "${SEC}" | grep -oP '\d{4}-\d{2}-\d{2}' | head -1)
+    T0=$(dsec_date "${SEC}")
     DEM_NAME="DEM_$(date -d "${T0} + 1 month" +%Y_%m)"
     r.mapcalc "${DEM_NAME} = ${PREV_DEM} + if(isnull(${SEC}@dSEC), 0, ${SEC}@dSEC)" --o
     PREV_DEM="${DEM_NAME}"

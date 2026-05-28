@@ -20,9 +20,11 @@ TIMES=$(ncdump -v time "$INFILE" | sed -n '/time = "/,/;/p' | sed '1s/.*= //;$s/
 mapfile -t times <<< "$TIMES"
 
 for ((i=0; i<${#times[@]}-1; i++)); do
-  t0=${times[i]%%T*}
-  next_date=${times[i+1]%%T*}
-  t1=$(date -d "$next_date - 1 day" +%F)
+  # Strip leading/trailing whitespace and replace hyphens with underscores
+  # (GRASS map names may not contain hyphens)
+  t0=$(echo "${times[i]%%T*}" | tr -d '[:space:]' | tr '-' '_')
+  next_date=$(echo "${times[i+1]%%T*}" | tr -d '[:space:]')
+  t1=$(date -d "$next_date - 1 day" +%F | tr '-' '_')
   OUTFILE=SEC_${t0}_${t1}
   echo $OUTFILE
   r.external -o source=NetCDF:${INFILE}:ZZ band=${i} output=${OUTFILE}
