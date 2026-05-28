@@ -15,17 +15,11 @@ ncdump -v y ${INFILE}
 g.region w=-832025.1 e=987974.9 s=-3337070 n=-457070.5 res=5000 -p
 g.region w=w-2500 e=e+2500 n=n+2500 s=s-2500 -pa
 
-# Use Python to extract all time steps reliably.
-# ncdump wraps 3 values per output line, so the naive mapfile approach reads
-# every 3rd monthly band instead of all 171 — hence the Python workaround.
+# Extract time steps: ncdump wraps values across lines, so pipe through grep
+# to get one YYYY-MM-DD per line regardless of wrapping. Scoped to data: section
+# to avoid matching the file_creation_date attribute.
 TIMES_FILE=$(mktemp)
-python3 -c "
-import netCDF4 as nc, sys
-ds = nc.Dataset('${INFILE}')
-for t in ds.variables['time'][:]:
-    print(t[:10])  # YYYY-MM-DD
-ds.close()
-" > "$TIMES_FILE"
+ncdump -v time "${INFILE}" | sed -n '/^data:/,${p}' | grep -oP '\d{4}-\d{2}-\d{2}' > "$TIMES_FILE"
 
 mapfile -t times < "$TIMES_FILE"
 rm "$TIMES_FILE"

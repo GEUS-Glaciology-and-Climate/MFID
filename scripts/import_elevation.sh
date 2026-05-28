@@ -27,31 +27,21 @@ ANCHOR_IDX=-1
 for i in "${!DSEC_MAPS[@]}"; do
     [[ "${DSEC_MAPS[$i]}" == SEC_2020_07* ]] && ANCHOR_IDX=$i && break
 done
-MSG_OK "dSEC anchor index: ${ANCHOR_IDX} (${DSEC_MAPS[$ANCHOR_IDX]})"
+ANCHOR_SEC="${DSEC_MAPS[$ANCHOR_IDX]}"
+MSG_OK "dSEC anchor: ${ANCHOR_SEC} (index ${ANCHOR_IDX})"
 
 # Helper: extract start date from map name (e.g. SEC_2020_07_01_... -> 2020-07-01)
 dsec_date() {
     echo "$1" | grep -oP '\d{4}_\d{2}_\d{2}' | head -1 | tr '_' '-'
 }
 
-# Backward integration: June 2020 → January 2011
-# DEM(month) = DEM(month+1) - dSEC(month); nulls in dSEC treated as no change
-PREV_DEM="DEM_2020_07"
-for (( i=ANCHOR_IDX-1; i>=0; i-- )); do
+# dSEC is cumulative elevation change relative to a reference epoch, so each
+# monthly DEM is computed directly from the anchor:
+#   DEM(t) = DEM_2020_07 + ( dSEC(t) - dSEC_anchor )
+# Nulls in dSEC treated as no change from anchor at that pixel.
+for (( i=0; i<${#DSEC_MAPS[@]}; i++ )); do
     SEC="${DSEC_MAPS[$i]}"
     T0=$(dsec_date "${SEC}")
     DEM_NAME="DEM_$(date -d "${T0}" +%Y_%m)"
-    r.mapcalc "${DEM_NAME} = ${PREV_DEM} - if(isnull(${SEC}@dSEC), 0, ${SEC}@dSEC)" --o
-    PREV_DEM="${DEM_NAME}"
-done
-
-# Forward integration: August 2020 → March 2025
-# DEM(month+1) = DEM(month) + dSEC(month); nulls in dSEC treated as no change
-PREV_DEM="DEM_2020_07"
-for (( i=ANCHOR_IDX; i<${#DSEC_MAPS[@]}; i++ )); do
-    SEC="${DSEC_MAPS[$i]}"
-    T0=$(dsec_date "${SEC}")
-    DEM_NAME="DEM_$(date -d "${T0} + 1 month" +%Y_%m)"
-    r.mapcalc "${DEM_NAME} = ${PREV_DEM} + if(isnull(${SEC}@dSEC), 0, ${SEC}@dSEC)" --o
-    PREV_DEM="${DEM_NAME}"
+    r.mapcalc "${DEM_NAME} = DEM_2020_07 + if(isnull(${SEC}@dSEC), 0, ${SEC}@dSEC) - if(isnull(${ANCHOR_SEC}@dSEC), 0, ${ANCHOR_SEC}@dSEC)" --o
 done
