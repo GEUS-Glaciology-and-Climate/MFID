@@ -45,16 +45,16 @@ $(STAMPS)/names: scripts/import_names.sh | $(STAMPS)
 	$(GRASS_EXEC) ./scripts/import_names.sh
 	touch $@
 
-$(STAMPS)/elevation: scripts/import_elevation.sh $(STAMPS)/dsec | $(STAMPS)
+$(STAMPS)/elevation: scripts/import_elevation.sh $(STAMPS)/sec | $(STAMPS)
 	$(GRASS_EXEC) ./scripts/import_elevation.sh
 	touch $@
 
-$(STAMPS)/dsec: scripts/import_dsec.sh | $(STAMPS)
-	$(GRASS_EXEC) ./scripts/import_dsec.sh
+$(STAMPS)/sec: scripts/import_sec.sh | $(STAMPS)
+	$(GRASS_EXEC) ./scripts/import_sec.sh
 	touch $@
 
 import: $(STAMPS)/bedmachine $(STAMPS)/sectors $(STAMPS)/area_error \
-        $(STAMPS)/velocity $(STAMPS)/names $(STAMPS)/elevation $(STAMPS)/dsec
+        $(STAMPS)/velocity $(STAMPS)/names $(STAMPS)/elevation $(STAMPS)/sec
 
 ## Gates ------------------------------------------------------------------
 

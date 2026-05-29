@@ -6,6 +6,6 @@ It provides the following CSV files.
 2. Mass flow rate ice discharge uncertainty. Units are Gt yr^{-1}.
 3. Coverage for each sector at each timestamp. Unitless [0 to 1].
 
-Ice discharge is calculated from the CCI Ice Velocity (IV) product and ice thickness from BedMachine. Ice thickness varies over time using a monthly DEM time series derived from the CCI differential Surface Elevation Change (dSEC) product (units: m/month), integrated forward and backward from a PRODEM July 2020 anchor. Ice discharge gates are placed 10 km upstream from all marine terminating glacier termini that have baseline velocities of more than 150 m/yr. Results are summed by Zwally et al. (2012) sectors.
+Ice discharge is calculated from the CCI Ice Velocity (IV) product and ice thickness from BedMachine. Ice thickness varies over time using an annual DEM time series derived from the CCI Surface Elevation Change rate (SEC) product (units: m/year), step-integrated forward and backward from a PRODEM July 2020 anchor using the SEC band closest in midpoint year to each target year. Ice discharge gates are placed 10 km upstream from all marine terminating glacier termini that have baseline velocities of more than 150 m/yr. Results are summed by Zwally et al. (2012) sectors.
 
 The methods, including description of "coverage", are described in Mankoff et al. (2020; DOI: 10.5194/essd-12-1367-2020).

@@ -1,6 +1,6 @@
 # MFID — Mass Flux Ice Discharge for ESA CCI+ Greenland, Phase 3
 
-Calculates the mass flux ice discharge (MFID) for the Greenland Ice Sheet as part of the ESA CCI+ Greenland project. Ice discharge is calculated from the CCI Ice Velocity (IV) product, ice thickness from BedMachine, and a monthly DEM time series derived from the CCI differential Surface Elevation Change (dSEC) product. Ice discharge gates are placed 10 km upstream from all marine-terminating glacier termini with baseline velocities above 150 m/yr. Results are summed by Zwally et al. (2012) sectors.
+Calculates the mass flux ice discharge (MFID) for the Greenland Ice Sheet as part of the ESA CCI+ Greenland project. Ice discharge is calculated from the CCI Ice Velocity (IV) product, ice thickness from BedMachine, and an annual DEM time series derived from the CCI Surface Elevation Change rate (SEC) product. Ice discharge gates are placed 10 km upstream from all marine-terminating glacier termini with baseline velocities above 150 m/yr. Results are summed by Zwally et al. (2012) sectors.
 
 Based on the workflow by Ken Mankoff for the PROMICE Solid Ice Discharge product:
 > Mankoff, Ken; Solgaard, Anne; Larsen, Signe, 2020, "Greenland Ice Sheet solid ice discharge from 1986 through last month: Discharge", https://doi.org/10.22008/promice/data/ice_discharge/d/v02, GEUS Dataverse, V101
@@ -44,12 +44,12 @@ The `Makefile` runs the full pipeline. Each step is a separate script; Make trac
 | `import_area_error.sh` | Compute 2D projection area error for EPSG:3413 |
 | `import_velocity.sh` | Import ENVEO monthly ice velocity; compute baseline and fill holes |
 | `import_names.sh` | Import Bjørk 2015 glacier names and Mouginot 2019 outlet names |
-| `import_elevation.sh` | Import PRODEM; build monthly DEM time series from dSEC (see below) |
-| `import_dsec.sh` | Import CCI dSEC monthly surface elevation change product |
+| `import_elevation.sh` | Import PRODEM; build annual DEM time series from SEC (see below) |
+| `import_sec.sh` | Import CCI SEC annual surface elevation change rate product |
 
 ### DEM time series
 
-Monthly DEMs are built by integrating the CCI dSEC product (units: m/month) forward and backward from a single anchor: the PRODEM July 2020 DEM. This gives a continuous monthly surface elevation time series from January 2011 to March 2025, which is used to compute time-varying ice thickness at each gate.
+Annual DEMs are built by step-integrating the CCI SEC product (units: m/year) forward and backward from a single anchor: the PRODEM July 2020 DEM. For each target year, the SEC band whose midpoint year is closest to that year is used as the rate. This gives an annual surface elevation time series from 1993 to 2023, which is used to compute time-varying ice thickness at each gate.
 
 ### Gates
 

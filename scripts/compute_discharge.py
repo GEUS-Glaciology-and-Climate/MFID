@@ -122,8 +122,8 @@ err.sort_index(axis='columns', inplace=True)
 dem = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('DEM' in c)))
 mv = {}
 for c in dem.columns:
-    parts = c.split('@')[0].split('_')  # e.g. ['DEM', '2020', '07']
-    mv[c] = pd.Timestamp(f"{parts[1]}-{parts[2]}-01")
+    parts = c.split('@')[0].split('_')  # e.g. ['DEM', '2020']
+    mv[c] = pd.Timestamp(f"{parts[1]}-07-01")  # PRODEM anchor is July; assign July to all annual DEMs
 dem.rename(inplace=True, columns=mv)
 
 

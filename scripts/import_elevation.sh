@@ -11,37 +11,57 @@ for f in $(ls ${DATADIR}/PRODEM/PRODEM??.tif); do
 done
 g.region raster=DEM_2019 -pa
 
-MSG_OK "DEM (monthly, integrated from PRODEM July 2020 anchor using dSEC)"
+MSG_OK "DEM (annual, step-integrated from PRODEM July 2020 anchor using SEC rates)"
 g.mapset -c DEM
 g.region raster=DEM_2020@PRODEM -pa
 
-# Anchor: PRODEM represents July, so DEM_2020_07 is our single reference point
-r.mapcalc "DEM_2020_07 = DEM_2020@PRODEM" --o
+# Anchor: PRODEM represents July, so DEM_2020 is our single reference point
+r.mapcalc "DEM_2020 = DEM_2020@PRODEM" --o
 
-# Get all dSEC maps in chronological order
-mapfile -t DSEC_MAPS < <(g.list type=raster mapset=dSEC pattern="SEC_*" separator=newline | LC_ALL=C sort)
+# List all SEC maps and compute midpoint year for each: SEC_YYYY1_YYYY2 -> mid=(YYYY1+YYYY2)/2
+mapfile -t SEC_MAPS < <(g.list type=raster mapset=SEC pattern="SEC_*" separator=newline | LC_ALL=C sort)
 
-# Find the July 2020 dSEC map (anchor for forward integration)
-# Map names use underscores (not hyphens) since GRASS forbids hyphens: SEC_2020_07_*
-ANCHOR_IDX=-1
-for i in "${!DSEC_MAPS[@]}"; do
-    [[ "${DSEC_MAPS[$i]}" == SEC_2020_07* ]] && ANCHOR_IDX=$i && break
+declare -A MID_TO_MAP
+for map in "${SEC_MAPS[@]}"; do
+    Y1=$(echo "$map" | grep -oP '\d{4}' | head -1)
+    Y2=$(echo "$map" | grep -oP '\d{4}' | tail -1)
+    MID=$(( (Y1 + Y2) / 2 ))
+    MID_TO_MAP[$MID]=$map
 done
-ANCHOR_SEC="${DSEC_MAPS[$ANCHOR_IDX]}"
-MSG_OK "dSEC anchor: ${ANCHOR_SEC} (index ${ANCHOR_IDX})"
 
-# Helper: extract start date from map name (e.g. SEC_2020_07_01_... -> 2020-07-01)
-dsec_date() {
-    echo "$1" | grep -oP '\d{4}_\d{2}_\d{2}' | head -1 | tr '_' '-'
+# Find the SEC map whose midpoint year is closest to a given target year
+closest_sec_map() {
+    local TARGET=$1
+    local best_map=""
+    local best_dist=9999
+    for mid in "${!MID_TO_MAP[@]}"; do
+        local dist=$(( mid - TARGET ))
+        [[ $dist -lt 0 ]] && dist=$(( -dist ))
+        if (( dist < best_dist )); then
+            best_dist=$dist
+            best_map="${MID_TO_MAP[$mid]}"
+        fi
+    done
+    echo "$best_map"
 }
 
-# dSEC is cumulative elevation change relative to a reference epoch, so each
-# monthly DEM is computed directly from the anchor:
-#   DEM(t) = DEM_2020_07 + ( dSEC(t) - dSEC_anchor )
-# Nulls in dSEC treated as no change from anchor at that pixel.
-for (( i=0; i<${#DSEC_MAPS[@]}; i++ )); do
-    SEC="${DSEC_MAPS[$i]}"
-    T0=$(dsec_date "${SEC}")
-    DEM_NAME="DEM_$(date -d "${T0}" +%Y_%m)"
-    r.mapcalc "${DEM_NAME} = DEM_2020_07 + if(isnull(${SEC}@dSEC), 0, ${SEC}@dSEC) - if(isnull(${ANCHOR_SEC}@dSEC), 0, ${ANCHOR_SEC}@dSEC)" --o
+# Forward integration: 2020 -> 2023
+# DEM(Y) = DEM(Y-1) + SEC_rate_closest_to_Y * 1 year
+# Nulls in SEC treated as no change from the previous year at that pixel.
+PREV="DEM_2020"
+for Y in 2021 2022 2023; do
+    MAP=$(closest_sec_map $Y)
+    MSG_OK "DEM_${Y}: adding ${MAP}"
+    r.mapcalc "DEM_${Y} = ${PREV} + if(isnull(${MAP}@SEC), 0, ${MAP}@SEC)" --o
+    PREV="DEM_${Y}"
+done
+
+# Backward integration: 2020 -> 1993
+# DEM(Y) = DEM(Y+1) - SEC_rate_closest_to_Y * 1 year
+PREV="DEM_2020"
+for Y in $(seq 2019 -1 1993); do
+    MAP=$(closest_sec_map $Y)
+    MSG_OK "DEM_${Y}: subtracting ${MAP}"
+    r.mapcalc "DEM_${Y} = ${PREV} - if(isnull(${MAP}@SEC), 0, ${MAP}@SEC)" --o
+    PREV="DEM_${Y}"
 done
