@@ -54,7 +54,7 @@ ax_D.fill_between(err_M2019.index,
                   (D_M2019.values+err_M2019.values).flatten(), 
                   color=C2, alpha=0.25, label='')
 
-ax_D.legend(["Mankoff (2019)", "GEUS CCI"], framealpha=0)
+ax_D.legend(["PROMICE", "MFID"], framealpha=0)
 ax_D.set_xlabel('Time [Years]')
 ax_D.set_ylabel('Discharge [Gt yr$^{-1}$]')
 
@@ -252,10 +252,10 @@ import matplotlib.pyplot as plt
 
 CCI = pd.read_csv("./out/GIS_D.csv", index_col=0, parse_dates=True)\
         .rename({'Discharge [Gt yr-1]':'CCI'}, axis='columns')
-ID = _ref['discharge'].to_series().rename('Mankoff (2019)').to_frame()
+ID = _ref['discharge'].to_series().rename('PROMICE').to_frame()
 
 df = pd.merge(CCI,ID,how='outer', left_index=True, right_index=True).dropna()
-# df['diff'] = df['Mankoff (2019)'] - df['CCI']
+# df['diff'] = df['PROMICE'] - df['CCI']
 df.plot()
 
 plt.savefig("./figs/this_v_M2019.png", dpi=300)
