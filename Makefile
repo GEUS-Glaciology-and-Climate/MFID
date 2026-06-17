@@ -84,13 +84,13 @@ export: tmp/dat.csv out/gates.gpkg
 
 ## Discharge and errors ---------------------------------------------------
 
-out/GIS_D.csv: scripts/compute_discharge.py tmp/dat.csv out/gate_meta.csv
+out/GIS_D.csv out/catchment_D.csv: scripts/compute_discharge.py tmp/dat.csv out/gate_meta.csv
 	$(CONDA_EXEC) python ./scripts/compute_discharge.py
 
 tmp/err_sector_mouginot.csv: scripts/compute_errors.py tmp/dat.csv out/gate_meta.csv
 	$(CONDA_EXEC) python ./scripts/compute_errors.py
 
-discharge: out/GIS_D.csv tmp/err_sector_mouginot.csv
+discharge: out/GIS_D.csv out/catchment_D.csv tmp/err_sector_mouginot.csv
 
 ## Figures ----------------------------------------------------------------
 

@@ -8,15 +8,27 @@ import datetime as dt
 ###
 ### Load metadata
 ### 
-meta_cols = ["x", "y", "err_2D", 
-             "regions@Mouginot_2019", "sectors@Zwally_2012", "gates_gateID@gates_150_10000"]
+meta_cols = ["x", "y", "err_2D",
+             "regions@Mouginot_2019", "sectors@Mouginot_2019", "sectors@Zwally_2012", "gates_gateID@gates_150_10000"]
 meta = pd.read_csv("./tmp/dat.csv", usecols=meta_cols)
 # rename columns
-meta.rename(inplace=True, columns={'regions@Mouginot_2019':'regions', 
+meta.rename(inplace=True, columns={'regions@Mouginot_2019':'regions',
+                                   'sectors@Mouginot_2019':'catchments',
                                    'sectors@Zwally_2012':'sectors',
                                    'gates_gateID@gates_150_10000':'gates'})
 regions = {1:'NO', 2:'NE', 3:'CE', 4:'SE', 5:'SW', 6:'CW', 7:'NW'}
 meta['regions'] = meta['regions'].map(regions.get) # Convert sector numbers to meaningful names
+
+# Map integer catchment categories to names from the GRASS label file
+catchment_labels = {}
+with open('./G/Mouginot_2019/cats/sectors') as f:
+    for line in f:
+        line = line.strip()
+        if ':' in line:
+            cat, name = line.split(':', 1)
+            catchment_labels[int(cat)] = name
+meta['catchments'] = meta['catchments'].map(catchment_labels)
+
 meta['ones'] = 1
 
 R = pd.read_csv('./out/gate_meta.csv')
@@ -312,32 +324,45 @@ D_err = vel.apply(lambda c: c * (th['fit_err'] * 200 * meta['err_2D'].values), a
 
 [DD,DD_err] = [_.copy() for _ in [D,D_err]]
 
-DD[['gates','sectors','regions','ones','name']] = meta[['gates','sectors','regions','ones','name']]
-DD_err[['gates','sectors','regions','ones','name']] = meta[['gates','sectors','regions','ones','name']]
+DD[['gates','catchments','sectors','regions','ones','name']] = meta[['gates','catchments','sectors','regions','ones','name']]
+DD_err[['gates','catchments','sectors','regions','ones','name']] = meta[['gates','catchments','sectors','regions','ones','name']]
 
 # D_gate :: Same, but at the gate scale
 # D_gate_err ::
 # D_gate_fill ::
-D_gates = DD.groupby('gates').sum().drop(['ones','sectors','regions','name'], axis=1)
-D_gates_err = DD_err.groupby('gates').sum().drop(['ones','sectors','regions','name'], axis=1)
+D_gates = DD.groupby('gates').sum().drop(['ones','catchments','sectors','regions','name'], axis=1)
+D_gates_err = DD_err.groupby('gates').sum().drop(['ones','catchments','sectors','regions','name'], axis=1)
 D_gates_fill_weight = pd.DataFrame().reindex_like(D_gates)
 for g in D_gates.index:
     g_idx = (DD['gates'] == g)
     D_gates_fill_weight.loc[g] = ((D[g_idx]*fill[g_idx])/D[g_idx].sum()).sum()
 
 D_gates.columns = D_gates.columns.astype(str).astype('datetime64[ns]')
-
 D_gates_err.columns = D_gates_err.columns.astype(str).astype('datetime64[ns]')
 D_gates_fill_weight.columns = D_gates_fill_weight.columns.astype(str).astype('datetime64[ns]')
 D_gates_fill_weight.clip(lower=0, upper=1, inplace=True)
 
 
+# D_catchments :: Aggregated at Mouginot catchment level (pixels assigned to catchments before
+# any gate-level grouping, so gates that straddle catchment boundaries are split correctly)
+D_catchments = DD.groupby('catchments').sum().drop(['ones','gates','sectors','regions','name'], axis=1)
+D_catchments_err = DD_err.groupby('catchments').sum().drop(['ones','gates','sectors','regions','name'], axis=1)
+D_catchments_fill_weight = pd.DataFrame().reindex_like(D_catchments)
+for c in D_catchments.index:
+    c_idx = (DD['catchments'] == c)
+    D_catchments_fill_weight.loc[c] = ((D[c_idx]*fill[c_idx])/D[c_idx].sum()).sum()
+
+D_catchments.columns = D_catchments.columns.astype(str).astype('datetime64[ns]')
+D_catchments_err.columns = D_catchments_err.columns.astype(str).astype('datetime64[ns]')
+D_catchments_fill_weight.columns = D_catchments_fill_weight.columns.astype(str).astype('datetime64[ns]')
+D_catchments_fill_weight.clip(lower=0, upper=1, inplace=True)
+
 
 # D_sector :: Same, but at Mouginot sector scale
 # D_sector_err ::
 # D_sector_fill ::
-D_sectors = DD.groupby('sectors').sum().drop(['ones','gates','regions','name'], axis=1)
-D_sectors_err = DD_err.groupby('sectors').sum().drop(['ones','gates','regions','name'], axis=1)
+D_sectors = DD.groupby('sectors').sum().drop(['ones','gates','catchments','regions','name'], axis=1)
+D_sectors_err = DD_err.groupby('sectors').sum().drop(['ones','gates','catchments','regions','name'], axis=1)
 D_sectors_fill_weight = pd.DataFrame().reindex_like(D_sectors)
 for s in D_sectors.index:
     s_idx = (DD['sectors'] == s)
@@ -357,8 +382,8 @@ D_sectors_fill_weight.clip(lower=0, upper=1, inplace=True)
 # D_region :: Same, but at Mouginot region scale
 # D_region_err ::
 # D_region_fill ::
-D_regions = DD.groupby('regions').sum().drop(['ones','sectors','gates','name'], axis=1)
-D_regions_err = DD_err.groupby('regions').sum().drop(['ones','sectors','gates','name'], axis=1)
+D_regions = DD.groupby('regions').sum().drop(['ones','sectors','gates','catchments','name'], axis=1)
+D_regions_err = DD_err.groupby('regions').sum().drop(['ones','sectors','gates','catchments','name'], axis=1)
 D_regions_fill_weight = pd.DataFrame().reindex_like(D_regions)
 for r in D_regions.index:
     r_idx = DD['regions'] == r
@@ -382,8 +407,8 @@ D_regions_fill_weight.clip(lower=0, upper=1, inplace=True)
 # D_all :: Same, but all GIS
 # D_all_err ::
 # D_all_fill ::
-D_all = DD.drop(['regions','sectors','ones','name','gates'], axis=1).sum()
-D_all_err = DD_err.drop(['regions','sectors','ones','name','gates'], axis=1).sum()
+D_all = DD.drop(['regions','sectors','ones','name','gates','catchments'], axis=1).sum()
+D_all_err = DD_err.drop(['regions','sectors','ones','name','gates','catchments'], axis=1).sum()
 D_all_fill_weight = pd.Series().reindex_like(D_all)
 for c in D.columns:
     D_all_fill_weight.loc[c] = (fill[c] * (D[c] / D[c].sum())).sum()
@@ -395,6 +420,9 @@ D_all_fill_weight = D_all_fill_weight.T[STARTDATE:].T
 D_gates = D_gates.T[STARTDATE:].T
 D_gates_err = D_gates_err.T[STARTDATE:].T
 D_gates_fill_weight = D_gates_fill_weight.T[STARTDATE:].T
+D_catchments = D_catchments.T[STARTDATE:].T
+D_catchments_err = D_catchments_err.T[STARTDATE:].T
+D_catchments_fill_weight = D_catchments_fill_weight.T[STARTDATE:].T
 D_sectors = D_sectors.T[STARTDATE:].T
 D_sectors_err = D_sectors_err.T[STARTDATE:].T
 D_sectors_fill_weight = D_sectors_fill_weight.T[STARTDATE:].T
@@ -420,6 +448,22 @@ D_gates_fill_weightT = D_gates_fill_weightT.loc[D_gatesT.index]
 D_gatesT.to_csv('./out/gate_D.csv')
 D_gates_errT.to_csv('./out/gate_err.csv')
 D_gates_fill_weightT.to_csv('./out/gate_coverage.csv')
+
+D_catchmentsT = D_catchments.T
+D_catchments_errT = D_catchments_err.T
+D_catchments_fill_weightT = D_catchments_fill_weight.T
+
+D_catchmentsT.index.name = "Date"
+D_catchments_errT.index.name = "Date"
+D_catchments_fill_weightT.index.name = "Date"
+
+D_catchmentsT = D_catchmentsT.replace(to_replace=0, value=np.nan).dropna(axis='rows', how='all')
+D_catchments_errT = D_catchments_errT.loc[D_catchmentsT.index]
+D_catchments_fill_weightT = D_catchments_fill_weightT.loc[D_catchmentsT.index]
+
+D_catchmentsT.to_csv('./out/catchment_D.csv')
+D_catchments_errT.to_csv('./out/catchment_err.csv')
+D_catchments_fill_weightT.to_csv('./out/catchment_coverage.csv')
 
 # meta_sector = pd.DataFrame(index=meta.groupby('sectors').first().index)
 # meta_sector['mean x'] = meta.groupby('sectors').mean()['x'].round().astype(np.int)
