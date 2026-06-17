@@ -90,7 +90,10 @@ out/GIS_D.csv out/catchment_D.csv: scripts/compute_discharge.py tmp/dat.csv out/
 tmp/err_sector_mouginot.csv: scripts/compute_errors.py tmp/dat.csv out/gate_meta.csv
 	$(CONDA_EXEC) python ./scripts/compute_errors.py
 
-discharge: out/GIS_D.csv out/catchment_D.csv tmp/err_sector_mouginot.csv
+out/catchment_variability.csv: scripts/compute_variability.py tmp/dat.csv tmp/dem_ts.csv out/catchment_D.csv
+	$(CONDA_EXEC) python ./scripts/compute_variability.py
+
+discharge: out/GIS_D.csv out/catchment_D.csv tmp/err_sector_mouginot.csv out/catchment_variability.csv
 
 ## Figures ----------------------------------------------------------------
 
