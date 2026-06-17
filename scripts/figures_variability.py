@@ -350,3 +350,57 @@ fig6.tight_layout()
 fig6.savefig('./figs/variability_ranked_trends.png', dpi=300, bbox_inches='tight')
 plt.close(fig6)
 print("  figs/variability_ranked_trends.png")
+
+# ============================================================
+# Figure 7: Seasonal variability — each year as a separate line
+# ============================================================
+
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+
+MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun',
+                'Jul','Aug','Sep','Oct','Nov','Dec']
+
+def plot_seasonal_panel(ax, ts, label, cmap, norm):
+    adj(ax, ['left', 'bottom'])
+    ts = ts.dropna()
+    ax.axhline(0, color='k', linewidth=0.5, alpha=0.4)
+    for year in sorted(ts.index.year.unique()):
+        yd = ts[ts.index.year == year]
+        ax.plot(yd.index.month, yd.values - yd.mean(),
+                color=cmap(norm(year)), linewidth=1.2,
+                marker='o', markersize=2.5)
+    ax.set_title(label, fontsize=9, loc='left')
+    ax.set_ylabel('D anomaly\n[Gt yr$^{-1}$]', fontsize=8)
+    ax.set_xlim(0.5, 12.5)
+    ax.set_xticks(range(1, 13))
+    ax.set_xticklabels([])   # cleared for all; bottom panel re-sets below
+
+years_all = sorted(D_gis.index.year.unique())
+norm7 = mcolors.Normalize(vmin=min(years_all), vmax=max(years_all))
+cmap7 = cm.get_cmap('plasma', len(years_all))
+
+fig7, axes = plt.subplots(6, 1, figsize=(9, 13))
+
+plot_seasonal_panel(axes[0], D_gis, 'Ice sheet total', cmap7, norm7)
+for ax, (cat, row) in zip(axes[1:], top5.iterrows()):
+    plot_seasonal_panel(ax, D_cat[cat],
+                        f"{row['name'].replace('_', ' ')}  ({row['region']})",
+                        cmap7, norm7)
+
+axes[-1].set_xticklabels(MONTH_LABELS, fontsize=8)
+axes[-1].set_xlabel('Month')
+
+# Colorbar spanning all panels
+sm = cm.ScalarMappable(cmap=cmap7, norm=norm7)
+sm.set_array([])
+cbar = fig7.colorbar(sm, ax=axes, shrink=0.6, pad=0.02, aspect=35)
+cbar.set_label('Year', fontsize=8)
+cbar.set_ticks(years_all)
+cbar.ax.yaxis.set_tick_params(labelsize=7)
+
+fig7.tight_layout()
+fig7.subplots_adjust(hspace=0.35)
+fig7.savefig('./figs/variability_seasonal.png', dpi=300, bbox_inches='tight')
+plt.close(fig7)
+print("  figs/variability_seasonal.png")
