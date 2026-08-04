@@ -404,3 +404,71 @@ fig7.subplots_adjust(hspace=0.35)
 fig7.savefig('./figs/variability_seasonal.png', dpi=300, bbox_inches='tight')
 plt.close(fig7)
 print("  figs/variability_seasonal.png")
+
+# ============================================================
+# Figure 8: Has the summer–winter amplitude changed over time?
+# ============================================================
+
+def seasonal_means(ts, min_count=2):
+    """JJA summer means and DJF winter means (Dec shifted to following year)."""
+    ts = ts.dropna()
+
+    # Summer: June–July–August
+    s = ts[ts.index.month.isin([6, 7, 8])]
+    summer = s.groupby(s.index.year).agg(['mean', 'count'])
+    summer = summer[summer['count'] >= min_count]['mean']
+
+    # Winter: Dec(year-1) + Jan + Feb — shift December forward one year
+    w = ts[ts.index.month.isin([12, 1, 2])].copy()
+    w_year = np.where(w.index.month == 12, w.index.year + 1, w.index.year)
+    winter = w.groupby(w_year).agg(['mean', 'count'])
+    winter = winter[winter['count'] >= min_count]['mean']
+
+    years = sorted(set(summer.index) & set(winter.index))
+    return summer.loc[years], winter.loc[years]
+
+def plot_amplitude_panel(ax, ts, label):
+    adj(ax, ['left', 'bottom'])
+
+    summer, winter = seasonal_means(ts)
+    amplitude = summer - winter
+    years = summer.index
+    x     = np.array(years, dtype=float)
+    x_dt  = pd.to_datetime([f"{y}-07-01" for y in years])
+
+    ax.fill_between(x_dt, summer.values, winter.values,
+                    alpha=0.12, color='grey')
+    ax.plot(x_dt, summer.values, 'o-', color='#e31a1c', ms=4, lw=1.2, label='JJA')
+    ax.plot(x_dt, winter.values, 'o-', color='#1f78b4', ms=4, lw=1.2, label='DJF')
+
+    if len(x) >= 4:
+        s_sl, s_ic, _ = lintrend(x, summer.values)
+        w_sl, w_ic, _ = lintrend(x, winter.values)
+        a_sl, _,    a_p = lintrend(x, amplitude.values)
+        ax.plot(x_dt, s_sl*x + s_ic, '--', color='#e31a1c', lw=1)
+        ax.plot(x_dt, w_sl*x + w_ic, '--', color='#1f78b4', lw=1)
+        ax.text(0.99, 0.03,
+                f"Amplitude trend: {a_sl*10:+.2f} Gt yr$^{{-1}}$ dec$^{{-1}}$  ({sig_stars(a_p)})",
+                transform=ax.transAxes, ha='right', va='bottom', fontsize=7,
+                bbox=dict(facecolor='white', alpha=0.8, edgecolor='none', pad=1))
+
+    ax.set_title(label, fontsize=9, loc='left')
+    ax.set_ylabel('D [Gt yr$^{-1}$]', fontsize=8)
+
+fig8, axes = plt.subplots(6, 1, figsize=(9, 13), sharex=True)
+
+plot_amplitude_panel(axes[0], D_gis, 'Ice sheet total')
+axes[0].legend(fontsize=8, frameon=False, ncol=2, loc='upper left')
+
+for ax, (cat, row) in zip(axes[1:], top5.iterrows()):
+    plot_amplitude_panel(ax, D_cat[cat],
+                         f"{row['name'].replace('_', ' ')}  ({row['region']})")
+
+axes[-1].set_xlabel('Year')
+axes[-1].xaxis.set_major_locator(mdates.YearLocator())
+
+fig8.tight_layout()
+fig8.subplots_adjust(hspace=0.4)
+fig8.savefig('./figs/variability_amplitude.png', dpi=300, bbox_inches='tight')
+plt.close(fig8)
+print("  figs/variability_amplitude.png")
