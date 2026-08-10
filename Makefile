@@ -96,7 +96,10 @@ out/catchment_variability.csv: scripts/compute_variability.py tmp/dat.csv tmp/de
 out/sector_variability.csv: scripts/compute_sector_variability.py out/sector_D.csv
 	$(CONDA_EXEC) python ./scripts/compute_sector_variability.py
 
-discharge: out/GIS_D.csv out/catchment_D.csv tmp/err_sector_mouginot.csv out/catchment_variability.csv out/sector_variability.csv
+out/sector_seasonality.csv: scripts/compute_sector_seasonality.py out/sector_D.csv
+	$(CONDA_EXEC) python ./scripts/compute_sector_seasonality.py
+
+discharge: out/GIS_D.csv out/catchment_D.csv tmp/err_sector_mouginot.csv out/catchment_variability.csv out/sector_variability.csv out/sector_seasonality.csv
 
 ## Figures ----------------------------------------------------------------
 
@@ -112,7 +115,11 @@ figs/sector_map_trend.png: scripts/figures_sector_map.py out/sector_variability.
 	mkdir -p figs
 	$(CONDA_EXEC) python ./scripts/figures_sector_map.py
 
-figures: figs/discharge_ts.png figs/sector_variability_scatter.png figs/sector_map_trend.png
+figs/sector_seasonality_cycle.png: scripts/figures_sector_seasonality.py out/sector_seasonality.csv out/sector_seasonality_annual.csv out/sector_D.csv
+	mkdir -p figs
+	$(CONDA_EXEC) python ./scripts/figures_sector_seasonality.py
+
+figures: figs/discharge_ts.png figs/sector_variability_scatter.png figs/sector_map_trend.png figs/sector_seasonality_cycle.png
 
 ## Distribution -----------------------------------------------------------
 
