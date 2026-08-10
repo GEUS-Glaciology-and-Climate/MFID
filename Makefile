@@ -108,7 +108,11 @@ figs/sector_variability_scatter.png: scripts/figures_sector_variability.py out/s
 	mkdir -p figs
 	$(CONDA_EXEC) python ./scripts/figures_sector_variability.py
 
-figures: figs/discharge_ts.png figs/sector_variability_scatter.png
+figs/sector_map_trend.png: scripts/figures_sector_map.py out/sector_variability.csv plot_data/Zwally_2012/sectors/sectors.shp plot_data/outlines/Kyst.shp
+	mkdir -p figs
+	$(CONDA_EXEC) python ./scripts/figures_sector_map.py
+
+figures: figs/discharge_ts.png figs/sector_variability_scatter.png figs/sector_map_trend.png
 
 ## Distribution -----------------------------------------------------------
 
