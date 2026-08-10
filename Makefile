@@ -93,7 +93,10 @@ tmp/err_sector_mouginot.csv: scripts/compute_errors.py tmp/dat.csv out/gate_meta
 out/catchment_variability.csv: scripts/compute_variability.py tmp/dat.csv tmp/dem_ts.csv out/catchment_D.csv
 	$(CONDA_EXEC) python ./scripts/compute_variability.py
 
-discharge: out/GIS_D.csv out/catchment_D.csv tmp/err_sector_mouginot.csv out/catchment_variability.csv
+out/sector_variability.csv: scripts/compute_sector_variability.py out/sector_D.csv
+	$(CONDA_EXEC) python ./scripts/compute_sector_variability.py
+
+discharge: out/GIS_D.csv out/catchment_D.csv tmp/err_sector_mouginot.csv out/catchment_variability.csv out/sector_variability.csv
 
 ## Figures ----------------------------------------------------------------
 
@@ -101,7 +104,11 @@ figs/discharge_ts.png: scripts/figures.py out/GIS_D.csv
 	mkdir -p figs
 	$(CONDA_EXEC) python ./scripts/figures.py
 
-figures: figs/discharge_ts.png
+figs/sector_variability_scatter.png: scripts/figures_sector_variability.py out/sector_variability.csv out/sector_D.csv out/sector_err.csv
+	mkdir -p figs
+	$(CONDA_EXEC) python ./scripts/figures_sector_variability.py
+
+figures: figs/discharge_ts.png figs/sector_variability_scatter.png
 
 ## Distribution -----------------------------------------------------------
 
