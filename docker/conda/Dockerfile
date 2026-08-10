@@ -17,6 +17,7 @@ RUN conda install \
   && pip install --no-cache-dir \
   cfchecker \
   cfunits \
+  geopandas \
   grass-session \
   nc-time-axis \
   pyshp \
