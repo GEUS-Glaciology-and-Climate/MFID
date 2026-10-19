@@ -6,7 +6,7 @@ g.mapset -c BedMachine
 
 for var in surface thickness bed errbed mask; do
   echo $var
-  r.external source=NetCDF:"${DATADIR}"/Morlighem_2022/BedMachine-v7.nc:${var} output=${var} --o
+  r.external source=NetCDF:"${DATADIR}"/Morlighem_2022/BedMachineGreenland-v7.nc:${var} output=${var} --o
 done
 
 r.colors -a map=errbed color=haxby
