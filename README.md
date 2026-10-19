@@ -39,7 +39,7 @@ The `Makefile` runs the full pipeline. Each step is a separate script; Make trac
 
 | Script | Description |
 |--------|-------------|
-| `import_bedmachine.sh` | Import BedMachine v5 surface, thickness, bed, and mask |
+| `import_bedmachine.sh` | Link BedMachine v7 (netCDF) surface, thickness, bed, errbed, and mask |
 | `import_sectors.sh` | Import Mouginot 2019 and Zwally 2012 sector masks |
 | `import_area_error.sh` | Compute 2D projection area error for EPSG:3413 |
 | `import_velocity.sh` | Import ENVEO monthly ice velocity; compute baseline and fill holes |

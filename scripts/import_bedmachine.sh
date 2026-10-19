@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 
-MSG_OK "BedMachine"
+MSG_OK "BedMachine v7"
 g.mapset -c BedMachine
 
 for var in surface thickness bed errbed mask; do
   echo $var
-  r.external source="${DATADIR}"/Morlighem_2022/BMv5_3413/${var}.tif output=${var} --o
+  r.external source=NetCDF:"${DATADIR}"/Morlighem_2022/BedMachine-v7.nc:${var} output=${var} --o
 done
 
 r.colors -a map=errbed color=haxby
