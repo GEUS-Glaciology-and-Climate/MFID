@@ -66,6 +66,7 @@ ax_D.minorticks_off()
 #     tick.set_horizontalalignment("left")
 
 plt.savefig('./figs/discharge_ts.png', transparent=False, bbox_inches='tight', dpi=300)
+plt.savefig('./figs/quicklook.png', transparent=False, bbox_inches='tight', dpi=120)  # CCI quicklook, <= 1200 px
 # plt.savefig('./figs/discharge_ts.pdf', box_inches='tight', dpi=300)
 
 # disp = pd.DataFrame(data = {'D':D_day_year.values.flatten(), 'err':err_day_year.values.flatten()},

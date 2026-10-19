@@ -123,10 +123,29 @@ figures: figs/discharge_ts.png figs/sector_variability_scatter.png figs/sector_m
 
 ## Distribution -----------------------------------------------------------
 
-dist:
-	ln -s out CCI
-	zip -r CCI.zip CCI
-	rm CCI
+# ESA CCI delivery zip: product files plus README.txt, description.txt and a
+# quicklook (<= 1200 px). Files 644, folder 755, nothing hidden. Analysis
+# outputs (variability, seasonality, catchment_*) are not part of the product.
+# Staged in a local temp dir because chmod has no effect on the SMB share.
+DIST_NAME ?= MFID_v3.0
+DIST_FILES = $(foreach s,GIS region sector gate,$(foreach v,D err coverage,out/$(s)_$(v).csv)) \
+    out/constant_thickness_GIS_D.csv out/gate_meta.csv out/gates.gpkg out/gates.kml \
+    MFID/README.txt MFID/description.txt
+
+dist: $(DIST_NAME).zip
+
+$(DIST_NAME).zip: $(DIST_FILES) figs/discharge_ts.png
+	@test $$(wc -c < MFID/description.txt) -le 100 || { echo "description.txt > 100 chars"; exit 1; }
+	@file figs/quicklook.png | grep -Eq ', ([0-9]{1,3}|1[01][0-9]{2}|1200) x ([0-9]{1,3}|1[01][0-9]{2}|1200),' \
+	    || { echo "figs/quicklook.png larger than 1200x1200"; exit 1; }
+	@stage=$$(mktemp -d) && \
+	mkdir $$stage/$(DIST_NAME) && \
+	cp $(DIST_FILES) $$stage/$(DIST_NAME)/ && \
+	cp figs/quicklook.png $$stage/$(DIST_NAME)/quicklook.png && \
+	chmod 755 $$stage/$(DIST_NAME) && chmod 644 $$stage/$(DIST_NAME)/* && \
+	rm -f $@ && (cd $$stage && zip -rX $(CURDIR)/$@ $(DIST_NAME)) && \
+	rm -rf $$stage
+	unzip -Z $@
 
 clean:
-	rm -fR G tmp out figs CCI.zip .stamps
+	rm -fR G tmp out figs CCI.zip $(DIST_NAME).zip .stamps

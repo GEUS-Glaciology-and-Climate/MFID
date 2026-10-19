@@ -67,7 +67,15 @@ Monthly DEMs are built by integrating the CCI dSEC product (units: m/month) forw
 | `export_gates.sh` | Export gate geometries to `out/gates.kml` and `out/gates.gpkg` |
 | `compute_discharge.py` | Compute discharge time series using monthly DEMs for time-varying thickness |
 | `compute_errors.py` | Compute discharge uncertainties |
-| `figures.py` | Generate figures |
+| `figures.py` | Generate figures, including `figs/quicklook.png` for the CCI delivery |
+
+### Delivery
+
+`make dist` builds `MFID_v3.0.zip` (override with `DIST_NAME=...`) for the ESA
+CCI portal: the product CSVs, gates, `MFID/README.txt`, `MFID/description.txt`
+and the quicklook, with 644/755 permissions. Analysis outputs (variability,
+seasonality, `catchment_*`) are left out. Run `make -n dist` first: stale
+prerequisites would trigger a pipeline rerun.
 
 ## Repository structure
 
