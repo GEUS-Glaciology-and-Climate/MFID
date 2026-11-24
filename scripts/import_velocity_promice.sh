@@ -29,9 +29,9 @@ for FILE in ${FILES}; do
   DATE_STR=$(ncdump -t -v time ${FILE} | tail -n2 | tr -dc '[0-9\-]' | tr '-' '_')
   echo $DATE_STR
 
-  VARS=$(gdalinfo ${FILE} | grep -o 'NetCDF:"[^"]*":[A-Za-z_]*' | cut -d: -f3)
+  HDR=$(ncdump -h ${FILE})
   for V in ${EAST} ${NORTH} ${EAST}_std ${NORTH}_std; do
-    echo "${VARS}" | grep -qx "${V}" || { MSG_ERR "${FILE} has no variable ${V}"; exit 1; }
+    echo "${HDR}" | grep -qE "[[:space:]]${V}\(" || { MSG_ERR "${FILE} has no variable ${V}"; exit 1; }
   done
 
   r.external -o source="NetCDF:${FILE}:${EAST}"      output=vx_${DATE_STR} --o
