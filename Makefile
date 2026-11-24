@@ -101,6 +101,30 @@ out/sector_seasonality.csv: scripts/compute_sector_seasonality.py out/sector_D.c
 
 discharge: out/GIS_D.csv out/catchment_D.csv tmp/err_sector_mouginot.csv out/catchment_variability.csv out/sector_variability.csv out/sector_seasonality.csv
 
+## PROMICE IV variant ----------------------------------------------------
+
+# A second MFID output, out_promice/, with the time-varying velocity from
+# PROMICE IV v5 ($DATADIR/Promice200m_v5) instead of ENVEO/CCI IV. Gates,
+# thickness and the baseline velocity are the ENVEO ones, so out_promice/
+# differs from out/ by the velocity product alone. Not part of `all`.
+
+$(STAMPS)/velocity_promice: scripts/import_velocity_promice.sh | $(STAMPS)/bedmachine
+	$(GRASS_EXEC) ./scripts/import_velocity_promice.sh
+	touch $@
+
+$(STAMPS)/vel_eff_promice: scripts/compute_vel_eff.sh | $(STAMPS)/gates $(STAMPS)/velocity_promice
+	$(GRASS_EXEC) ./scripts/compute_vel_eff.sh promice
+	touch $@
+
+tmp/dat_promice.csv: scripts/export_data.sh | out/gate_meta.csv $(STAMPS)/vel_eff_promice $(STAMPS)/area_error
+	$(GRASS_EXEC) ./scripts/export_data.sh promice
+
+out_promice/GIS_D.csv: scripts/compute_discharge.py tmp/dat_promice.csv out/gate_meta.csv out/gates.gpkg
+	$(CONDA_EXEC) python ./scripts/compute_discharge.py promice
+	cp out/gate_meta.csv out/gates.gpkg out/gates.kml out_promice/
+
+promice_iv: out_promice/GIS_D.csv
+
 ## Figures ----------------------------------------------------------------
 
 figs/discharge_ts.png: scripts/figures.py out/GIS_D.csv
@@ -148,4 +172,4 @@ $(DIST_NAME).zip: $(DIST_FILES) figs/discharge_ts.png
 	unzip -Z $@
 
 clean:
-	rm -fR G tmp out figs CCI.zip $(DIST_NAME).zip .stamps
+	rm -fR G tmp out out_promice figs CCI.zip $(DIST_NAME).zip .stamps

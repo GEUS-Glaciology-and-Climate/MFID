@@ -9,7 +9,8 @@ Methods are described in Mankoff et al. (2020; DOI: 10.5194/essd-12-1367-2020).
 
 ## Output
 
-- `out/` — CSV files with mass flow rate ice discharge (Gt yr⁻¹), discharge uncertainty (Gt yr⁻¹), and gate coverage [0–1], at gate, sector, region, and GIS scale.
+- `out/` — CSV files with mass flow rate ice discharge (Gt yr⁻¹), discharge uncertainty (Gt yr⁻¹), and gate coverage [0–1], at gate, sector, region, and GIS scale. Velocity from ENVEO (CCI IV): the delivered product.
+- `out_promice/` — the same with velocity from PROMICE IV v5 (`make promice_iv`, see below).
 
 ## Dependencies
 
@@ -43,6 +44,7 @@ The `Makefile` runs the full pipeline. Each step is a separate script; Make trac
 | `import_sectors.sh` | Import Mouginot 2019 and Zwally 2012 sector masks |
 | `import_area_error.sh` | Compute 2D projection area error for EPSG:3413 |
 | `import_velocity.sh` | Import ENVEO monthly ice velocity; compute baseline and fill holes |
+| `import_velocity_promice.sh` | Import PROMICE IV v5 (`$DATADIR/Promice200m_v5`) into mapset `promice`, for the PROMICE IV variant (below) |
 | `import_names.sh` | Import Bjørk 2015 glacier names and Mouginot 2019 outlet names |
 | `import_elevation.sh` | Import PRODEM; build monthly DEM time series from dSEC (see below) |
 | `import_dsec.sh` | Import CCI dSEC monthly surface elevation change product |
@@ -57,17 +59,28 @@ Monthly DEMs are built by integrating the CCI dSEC product (units: m/month) forw
 |--------|-------------|
 | `find_gates.sh` | Identify ice discharge gates from velocity and BedMachine mask |
 | `gate_metadata.sh` | Add coordinates, sector, region, and glacier name to each gate; export `out/gate_meta.csv` |
-| `compute_vel_eff.sh` | Compute effective velocity at each gate pixel for each ENVEO timestep |
+| `compute_vel_eff.sh` | Compute effective velocity at each gate pixel for each timestep (`promice` argument: PROMICE IV) |
 
 ### Export and discharge
 
 | Script | Description |
 |--------|-------------|
-| `export_data.sh` | Export all gate-masked raster data to `tmp/dat.csv` |
+| `export_data.sh` | Export all gate-masked raster data to `tmp/dat.csv` (`promice`: `tmp/dat_promice.csv`) |
 | `export_gates.sh` | Export gate geometries to `out/gates.kml` and `out/gates.gpkg` |
-| `compute_discharge.py` | Compute discharge time series using monthly DEMs for time-varying thickness |
+| `compute_discharge.py` | Compute discharge time series using monthly DEMs for time-varying thickness (`promice`: writes `out_promice/`) |
 | `compute_errors.py` | Compute discharge uncertainties |
 | `figures.py` | Generate figures, including `figs/quicklook.png` for the CCI delivery |
+
+### PROMICE IV variant
+
+`make promice_iv` builds a second MFID output, `out_promice/`, with the
+time-varying velocity from PROMICE IV v5 (Sentinel-1, 200 m, ~12-day) instead
+of ENVEO/CCI IV. Gates, thickness and the baseline velocity are the ENVEO ones,
+so `out_promice/` differs from `out/` by the velocity product alone. It needs
+the ENVEO run's gates (`make` first) and is not part of `make all`. Its files
+are on PROMICE's ~12-day dates rather than monthly. `gate_meta.csv` and
+`gates.*` are copied from `out/`. Compare the two with
+`make compare_iv` in `../validation/`.
 
 ### Delivery
 

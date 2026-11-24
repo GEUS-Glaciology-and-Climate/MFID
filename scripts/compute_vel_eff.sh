@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Computes effective velocity (vel_eff) and effective error (err_eff) at each
-# gate pixel for every ENVEO timestep. Units: m yr-1.
+# gate pixel for every timestep of one velocity product. Units: m yr-1.
+#   compute_vel_eff.sh            ENVEO (CCI IV), the delivered product
+#   compute_vel_eff.sh promice    PROMICE IV v5, written to its own mapset
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
+
+VEL_MAPSET=${1:-ENVEO}
 
 g.mapsets -l
 
@@ -9,7 +13,7 @@ r.mask -r
 
 MAPSET=$(g.mapsets --q -l separator=newline | grep "gates_")
 
-g.mapset ENVEO
+g.mapset ${VEL_MAPSET}
 g.region -d
 r.mapcalc "MASK = if((gates_x@${MAPSET} == 1) | (gates_y@${MAPSET} == 1), 1, null())" --o
 
@@ -24,4 +28,4 @@ for VX in $(g.list type=raster pattern=vx_????_??_??); do
   r.null map=err_eff_${DATE} null=0
 done
 
-MSG_OK "vel_eff DONE"
+MSG_OK "vel_eff ${VEL_MAPSET} DONE"

@@ -1,7 +1,27 @@
+"""Discharge from the gate-pixel export, for one velocity product.
+
+  python scripts/compute_discharge.py            ENVEO (CCI IV): tmp/dat.csv -> out/
+  python scripts/compute_discharge.py promice    PROMICE IV v5:  tmp/dat_promice.csv -> out_promice/
+
+Only the time-varying velocity (vel_eff, err_eff) differs between the two;
+gates, thickness and the baseline velocity are shared. out/gate_meta.csv is
+read in both cases.
+"""
+import os
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import datetime as dt
+
+SRC = sys.argv[1] if len(sys.argv) > 1 else "ENVEO"
+if SRC == "ENVEO":
+    DAT, OUT, SFX = "./tmp/dat.csv", "./out", ""
+else:
+    DAT, OUT, SFX = f"./tmp/dat_{SRC}.csv", f"./out_{SRC}", f"_{SRC}"
+os.makedirs(OUT, exist_ok=True)
+print(f"velocity: {SRC}  input: {DAT}  output: {OUT}/")
 
 # pd.options.display.notebook_repr_html = False
 
@@ -10,7 +30,7 @@ import datetime as dt
 ### 
 meta_cols = ["x", "y", "err_2D",
              "regions@Mouginot_2019", "sectors@Mouginot_2019", "sectors@Zwally_2012", "gates_gateID@gates_150_10000"]
-meta = pd.read_csv("./tmp/dat.csv", usecols=meta_cols)
+meta = pd.read_csv(DAT, usecols=meta_cols)
 # rename columns
 meta.rename(inplace=True, columns={'regions@Mouginot_2019':'regions',
                                    'sectors@Mouginot_2019':'catchments',
@@ -39,13 +59,13 @@ for g in meta['gates'].unique(): meta.loc[meta['gates'] == g, 'name'] = R[R['gat
 ###
 ### Load BASELINE velocity
 ###
-vel_baseline = pd.read_csv("./tmp/dat.csv", usecols=['vel_baseline@ENVEO'])
+vel_baseline = pd.read_csv(DAT, usecols=['vel_baseline@ENVEO'])
 vel_baseline.rename(inplace=True, columns={'vel_baseline@ENVEO':'vel'})
 
 ###
 ### Load all velocity
 ###
-vel = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: (('vel_eff' in c) & ('ENVEO' in c))))
+vel = pd.read_csv(DAT, usecols=(lambda c: (('vel_eff' in c) & (f'@{SRC}' in c))))
 
 #vel.rename(columns=lambda c: pd.to_datetime(int(c[8:12]), int(c[13:15]), int(c[16:18])), inplace=True)
 
@@ -101,7 +121,7 @@ vel.fillna(method='bfill', axis=1, inplace=True)
 ###
 ### Load all velocity ERROR
 ###
-err = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('err_eff' in c)))
+err = pd.read_csv(DAT, usecols=(lambda c: (('err_eff' in c) & (f'@{SRC}' in c))))
 #err.rename(columns=lambda c: pd.to_datetime(int(c[8:12]), int(c[13:15]), int(c[16:18])), inplace=True)
 err.rename(columns=lambda c: convert_to_datetime(c), inplace=True)
 
@@ -131,7 +151,7 @@ err.sort_index(axis='columns', inplace=True)
 ###
 ### DEM
 ###
-dem = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('DEM' in c)))
+dem = pd.read_csv(DAT, usecols=(lambda c: ('DEM' in c)))
 mv = {}
 for c in dem.columns:
     parts = c.split('@')[0].split('_')  # e.g. ['DEM', '2020', '07']
@@ -142,7 +162,7 @@ dem.rename(inplace=True, columns=mv)
 ###
 ### Thickness
 ###
-th = pd.read_csv("./tmp/dat.csv", usecols=["thickness@BedMachine",
+th = pd.read_csv(DAT, usecols=["thickness@BedMachine",
                                            "surface@BedMachine",
                                            "bed@BedMachine",
                                            "errbed@BedMachine",
@@ -154,7 +174,7 @@ th.rename(inplace=True, columns={'errbed@BedMachine': 'err',
 
 
 th['thick'] = dem[pd.Timestamp('2020-07-01')] - th['bed@BedMachine']
-# th_GIMP = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('@GIMP.0715' in c)))
+# th_GIMP = pd.read_csv(DAT, usecols=(lambda c: ('@GIMP.0715' in c)))
 # th_GIMP['day'] = [dt.datetime(2000,1,1) + dt.timedelta(days=np.int(_)) for _ in th_GIMP['day@GIMP.0715']]
 # for _ in th_GIMP.columns: th[_] = th_GIMP[_]
 # del(th_GIMP)
@@ -163,7 +183,7 @@ th['thick'] = dem[pd.Timestamp('2020-07-01')] - th['bed@BedMachine']
 ###
 ### dh/dt
 ###
-#dhdt = pd.read_csv("./tmp/dat.csv", usecols=(lambda c: ('dh' in c)))
+#dhdt = pd.read_csv(DAT, usecols=(lambda c: ('dh' in c)))
 #mv = {}
 #for c in dhdt.columns: mv[c] = int(c.split('@')[0].split('_')[1])
 #dhdt.rename(inplace=True, columns=mv)
@@ -181,7 +201,7 @@ th['thick'] = dem[pd.Timestamp('2020-07-01')] - th['bed@BedMachine']
 D = (vel).apply(lambda c: c * (200 * th['thick'] * meta['err_2D'].values), axis=0) * 917 / 1E12
 D_sum = D.sum(axis='rows')#.resample('1D').mean().interpolate(method='time', limit_area='inside').resample('M').mean()
 
-D_sum.to_csv('out/constant_thickness_GIS_D.csv', float_format='%.5f', header=["Discharge [Gt yr-1]"])
+D_sum.to_csv(f'{OUT}/constant_thickness_GIS_D.csv', float_format='%.5f', header=["Discharge [Gt yr-1]"])
 
 th['bad'] = th['thick'] <= 20
 
@@ -244,8 +264,8 @@ ax.fill_between(XX[:,1], lower, upper, color='#888888', alpha=0.4)
 ax.fill_between(XX[:,1], lower, upper, color='#888888', alpha=0.1)
 # ax.set_xlim(50,xl[1])
 ax.set_ylim(0,yl[1])
-plt.savefig('./tmp/vel_thick_fit.png', transparent=True, bbox_inches='tight', dpi=300)
-plt.savefig('./tmp/vel_thick_fit.pdf', transparent=True, bbox_inches='tight', dpi=300)
+plt.savefig(f'./tmp/vel_thick_fit{SFX}.png', transparent=True, bbox_inches='tight', dpi=300)
+plt.savefig(f'./tmp/vel_thick_fit{SFX}.pdf', transparent=True, bbox_inches='tight', dpi=300)
             
 th['fit'] = th['thick']
 vel_where_thick_bad = vel_baseline.loc[th['bad'] == True, 'vel']
@@ -302,7 +322,7 @@ dem_ts = dem_ts.T.resample('1D').interpolate().T
 dem_ts = dem_ts[vel.columns] # resample back to observed times
 # Above gives us DEM time series at each gate pixel
 
-dem_ts.to_csv('tmp/dem_ts.csv', index = True)
+dem_ts.to_csv(f'tmp/dem_ts{SFX}.csv', index = True)
 # subtract thickness from each pixel at each time
 th_ts = dem_ts.apply(lambda x: x - th['bed@BedMachine'])
 
@@ -445,9 +465,9 @@ D_gatesT = D_gatesT.replace(to_replace=0, value=np.nan).dropna(axis='rows', how=
 D_gates_errT = D_gates_errT.loc[D_gatesT.index]
 D_gates_fill_weightT = D_gates_fill_weightT.loc[D_gatesT.index]
 
-D_gatesT.to_csv('./out/gate_D.csv')
-D_gates_errT.to_csv('./out/gate_err.csv')
-D_gates_fill_weightT.to_csv('./out/gate_coverage.csv')
+D_gatesT.to_csv(f'{OUT}/gate_D.csv')
+D_gates_errT.to_csv(f'{OUT}/gate_err.csv')
+D_gates_fill_weightT.to_csv(f'{OUT}/gate_coverage.csv')
 
 D_catchmentsT = D_catchments.T
 D_catchments_errT = D_catchments_err.T
@@ -461,9 +481,9 @@ D_catchmentsT = D_catchmentsT.replace(to_replace=0, value=np.nan).dropna(axis='r
 D_catchments_errT = D_catchments_errT.loc[D_catchmentsT.index]
 D_catchments_fill_weightT = D_catchments_fill_weightT.loc[D_catchmentsT.index]
 
-D_catchmentsT.to_csv('./out/catchment_D.csv')
-D_catchments_errT.to_csv('./out/catchment_err.csv')
-D_catchments_fill_weightT.to_csv('./out/catchment_coverage.csv')
+D_catchmentsT.to_csv(f'{OUT}/catchment_D.csv')
+D_catchments_errT.to_csv(f'{OUT}/catchment_err.csv')
+D_catchments_fill_weightT.to_csv(f'{OUT}/catchment_coverage.csv')
 
 # meta_sector = pd.DataFrame(index=meta.groupby('sectors').first().index)
 # meta_sector['mean x'] = meta.groupby('sectors').mean()['x'].round().astype(np.int)
@@ -483,10 +503,10 @@ D_sectorsT = D_sectorsT.replace(to_replace=0, value=np.nan).dropna(axis='rows', 
 D_sectors_errT = D_sectors_errT.loc[D_sectorsT.index]
 D_sectors_fill_weightT = D_sectors_fill_weightT.loc[D_sectorsT.index]
 
-# meta_sector.to_csv('./out/sector_meta.csv')
-D_sectorsT.to_csv('./out/sector_D.csv')
-D_sectors_errT.to_csv('./out/sector_err.csv')
-D_sectors_fill_weightT.to_csv('./out/sector_coverage.csv')
+# meta_sector.to_csv(f'{OUT}/sector_meta.csv')
+D_sectorsT.to_csv(f'{OUT}/sector_D.csv')
+D_sectors_errT.to_csv(f'{OUT}/sector_err.csv')
+D_sectors_fill_weightT.to_csv(f'{OUT}/sector_coverage.csv')
 
 # meta_sector.head(10)
 
@@ -504,10 +524,10 @@ D_regionsT = D_regionsT.replace(to_replace=0, value=np.nan).dropna(axis='rows', 
 D_regions_errT = D_regions_errT.loc[D_regionsT.index]
 D_regions_fill_weightT = D_regions_fill_weightT.loc[D_regionsT.index]
 
-# meta_region.to_csv('./out/region_meta.csv')
-D_regionsT.to_csv('./out/region_D.csv')
-D_regions_errT.to_csv('./out/region_err.csv')
-D_regions_fill_weightT.to_csv('./out/region_coverage.csv')
+# meta_region.to_csv(f'{OUT}/region_meta.csv')
+D_regionsT.to_csv(f'{OUT}/region_D.csv')
+D_regions_errT.to_csv(f'{OUT}/region_err.csv')
+D_regions_fill_weightT.to_csv(f'{OUT}/region_coverage.csv')
 
 # meta_region.head(10)
 
@@ -519,6 +539,6 @@ D_all = D_all.replace(to_replace=0, value=np.nan).dropna(axis='rows', how='all')
 D_all_err = D_all_err[D_all.index]
 D_all_fill_weight = D_all_fill_weight[D_all.index]
 
-D_all.to_csv('./out/GIS_D.csv', float_format='%.5f', header=["Discharge [Gt yr-1]"])
-D_all_err.to_csv('./out/GIS_err.csv', float_format='%.5f', header=["Discharge Error [Gt yr-1]"])
-D_all_fill_weight.to_csv('./out/GIS_coverage.csv', float_format='%.5f', header=["Coverage [unit]"])
+D_all.to_csv(f'{OUT}/GIS_D.csv', float_format='%.5f', header=["Discharge [Gt yr-1]"])
+D_all_err.to_csv(f'{OUT}/GIS_err.csv', float_format='%.5f', header=["Discharge Error [Gt yr-1]"])
+D_all_fill_weight.to_csv(f'{OUT}/GIS_coverage.csv', float_format='%.5f', header=["Coverage [unit]"])
